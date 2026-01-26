@@ -32,6 +32,20 @@ const HomeScreen = ({ navigation }) => {
             alignItems: 'center',
           }}
         >
+          <TouchableOpacity onPress={() => navigation.navigate('VoiceToText')}>
+            <Ionicons name="mic" size={20} />
+          </TouchableOpacity>
+        </View>
+        <View
+          style={{
+            borderRadius: 20,
+            borderWidth: 1,
+            height: 30,
+            width: 30,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
           <Ionicons name="person" size={20} />
         </View>
       </View>

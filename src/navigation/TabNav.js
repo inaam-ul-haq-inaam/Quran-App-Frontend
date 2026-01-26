@@ -3,8 +3,13 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-import HomeScreen from '../screens/HomeScreen';
-import { QuranStackNav, BayanStackNav } from '../navigation/StackNav';
+import HomeScreen from '../screens/HomeScreen'; // 👈 Iski ab zaroorat nahi (hata sakte hain)
+// 👇 1. IMPORT UPDATE KAREIN
+import {
+  QuranStackNav,
+  BayanStackNav,
+  HomeStackNav,
+} from '../navigation/StackNav';
 import ManazilScreen from '../screens/ManazilScreen';
 import SettingScreen from '../screens/SettingScreen';
 import { HideNav } from '../components/HideNav';
@@ -20,10 +25,8 @@ const TabNav = () => {
           tabBarActiveTintColor: '#008000',
           tabBarInactiveTintColor: 'gray',
           headerShown: false,
-
           tabBarIcon: ({ focused, color, size }) => {
             let iconName;
-
             if (route.name === 'Home') {
               iconName = focused ? 'home' : 'home-outline';
             } else if (route.name === 'Quran') {
@@ -35,12 +38,21 @@ const TabNav = () => {
             } else if (route.name === 'Setting') {
               iconName = focused ? 'settings' : 'settings-outline';
             }
-
             return <Ionicons name={iconName} size={size} color={color} />;
           },
         })}
       >
-        <tab.Screen name="Home" component={HomeScreen} />
+        {/* 👇 2. HOME TAB MEIN CHANGE (HomeScreen -> HomeStackNav) */}
+        <tab.Screen
+          name="Home"
+          component={HomeStackNav} // 👈 Ab ye Stack use karega
+          options={({ route }) => ({
+            // Agar aap chahte hain k Voice Screen par Tab Bar chhup jaye
+            tabBarStyle: {
+              display: HideNav(route, ['VoiceToText']),
+            },
+          })}
+        />
 
         <tab.Screen
           name="Quran"
