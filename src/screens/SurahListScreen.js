@@ -13,7 +13,7 @@ import axios from 'axios';
 const SurahListScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [surahlist, setsurahList] = useState([]);
-  const API_URL = 'http://192.168.30.150:8000/Surah';
+  const API_URL = 'http://10.27.239.234:8000/Surah';
 
   useEffect(() => {
     fetchSurahs();

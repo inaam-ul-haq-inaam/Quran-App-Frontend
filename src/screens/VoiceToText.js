@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { Checkbox, RadioButton } from 'react-native-paper';
 import { WebView } from 'react-native-webview';
 
 export default function VoiceToText() {
@@ -12,7 +13,6 @@ export default function VoiceToText() {
         </Text>
       </View>
 
-      {/* WebView */}
       <WebView
         originWhitelist={['*']}
         javaScriptEnabled={true}
@@ -42,8 +42,9 @@ export default function VoiceToText() {
     const recognition = new SpeechRecognition();
 
     recognition.lang = 'en-US'; 
-    // Urdu:  'ur-PK'
-    // Arabic: 'ar-SA'
+    // Urdu:  'ur-PK',en-US,'ar-SA'
+    
+
 
     recognition.continuous = false;
     recognition.interimResults = false;

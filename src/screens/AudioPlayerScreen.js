@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-  Alert,
   Dimensions,
   Image,
+  ToastAndroid,
 } from 'react-native';
 import TrackPlayer, {
   Capability,
@@ -16,43 +16,69 @@ import TrackPlayer, {
   usePlaybackState,
   useProgress,
   Event,
+  RepeatMode,
 } from 'react-native-track-player';
 import Slider from '@react-native-community/slider';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import axios from 'axios';
 
-const { width } = Dimensions.get('window');
+const SURAH_NAMES = {
+  1: 'Al-Fatiha',
+  2: 'Al-Baqarah',
+  36: 'Ya-Sin',
+  55: 'Ar-Rahman',
+  67: 'Al-Mulk',
+};
 
-const AudioPlayerScreen = ({ route }) => {
-  const { surah_ID, surahName } = route.params;
+const AudioPlayerScreen = ({ route, navigation }) => {
+  // ✅ FIX 1: ID ko hamesha Number mein convert karein (parseInt)
+  const [currentSurahId, setCurrentSurahId] = useState(
+    parseInt(route.params.surah_ID),
+  );
+  const [currentSurahName, setCurrentSurahName] = useState(
+    route.params.surahName,
+  );
+
   const [ayats, setAyats] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Track Player Hooks
   const playbackState = usePlaybackState();
   const progress = useProgress();
 
+  // --- Load New Surah ---
   useEffect(() => {
-    // Sequence function: Pehle Setup, Phir Fetch
-    const init = async () => {
-      await setup(); // Step 1: Player Ready karo
-      await fetchAyats(); // Step 2: Data mangwao
-    };
+    const loadNewSurah = async () => {
+      setLoading(true);
+      await setup(); // Player Ready karo
+      await fetchAyats(currentSurahId); // Phir data lao
 
-    init();
-
-    return () => {
-      TrackPlayer.stop();
+      // Name update
+      if (SURAH_NAMES[currentSurahId]) {
+        setCurrentSurahName(SURAH_NAMES[currentSurahId]);
+      }
     };
+    loadNewSurah();
+  }, [currentSurahId]);
+
+  // --- Track Listener ---
+  useEffect(() => {
+    const listener = TrackPlayer.addEventListener(
+      Event.PlaybackActiveTrackChanged,
+      event => {
+        if (event.index !== undefined) setCurrentIndex(event.index);
+      },
+    );
+    return () => listener.remove();
   }, []);
 
-  // --- 1. Player Setup (Robust) ---
+  // ✅ FIX 2: Setup Logic (Ab ye Error aane par Setup karega)
   const setup = async () => {
     try {
-      // Check agar player pehle se active hai
+      // Check karo agar player pehle se bana hua hai
       await TrackPlayer.getActiveTrackIndex();
     } catch (error) {
-      // Agar active nahi hai, to setup karo
+      // ⚠️ Agar Error aya matlab Player bana nahi hai -> AB BANAO
       try {
         await TrackPlayer.setupPlayer();
         await TrackPlayer.updateOptions({
@@ -64,104 +90,165 @@ const AudioPlayerScreen = ({ route }) => {
             Capability.SkipToPrevious,
             Capability.SeekTo,
           ],
-          compactCapabilities: [Capability.Play, Capability.Pause],
+          compactCapabilities: [
+            Capability.Play,
+            Capability.Pause,
+            Capability.SkipToNext,
+          ],
         });
+        await TrackPlayer.setRepeatMode(RepeatMode.Off);
       } catch (setupError) {
-        console.log('Player Setup Warning:', setupError);
+        console.log('Setup Error:', setupError);
       }
     }
   };
 
-  // --- 2. Fetch Data ---
-  const fetchAyats = async () => {
+  const fetchAyats = async id => {
     try {
-      const url = 'http://192.168.30.150:8000/get_Surah_Ayats';
+      const url = 'http://10.27.239.234:8000/get_Surah_Ayats';
+      const payload = { surah_ID: id, reciterid: 1 };
 
-      // ✅ Payload with correct spelling & reciterID
-      const payload = {
-        surah_ID: surah_ID,
-        reciterid: 1,
-      };
-
-      console.log('Fetching Ayats...');
+      console.log(`Fetching Surah ID: ${id}...`);
       const response = await axios.post(url, payload);
 
-      if (response.data.data) {
+      if (response.data.data && response.data.data.length > 0) {
         setAyats(response.data.data);
-        // Data aate hi Player mein daal dein
-        await addTracksToPlayer(response.data.data);
+        await addTracksToPlayer(response.data.data, id);
       } else {
-        Alert.alert('Error', 'No Ayats found');
+        ToastAndroid.show('No Audio Found', ToastAndroid.SHORT);
+        setLoading(false);
       }
     } catch (error) {
-      console.log('API Error:', error);
-      Alert.alert('Error', 'Network request failed. Check IP.');
-    } finally {
+      console.error('API Error:', error);
       setLoading(false);
     }
   };
 
-  // --- 3. Add to Player & Play ---
-  const addTracksToPlayer = async ayatsList => {
+  const addTracksToPlayer = async (ayatsList, id) => {
     try {
       await TrackPlayer.reset();
-
       const tracks = ayatsList.map((ayat, index) => ({
-        id: `${surah_ID}_${index}`,
+        id: `${index}`,
         url: ayat.audio,
         title: `Ayat ${ayat.AyatNumber || index + 1}`,
-        artist: ayat.reciterName || 'Mishary Al-Afasy',
+        artist: SURAH_NAMES[id] || `Surah ${id}`,
         artwork: 'https://cdn-icons-png.flaticon.com/512/3206/3206015.png',
       }));
 
-      console.log(`Adding ${tracks.length} tracks...`);
       await TrackPlayer.add(tracks);
-
-      console.log('▶️ Auto Playing...');
       await TrackPlayer.play();
+      setLoading(false);
     } catch (error) {
-      console.log('❌ Track Add Error:', error);
+      console.log('Add Track Error:', error);
+      setLoading(false);
     }
   };
 
-  // --- Helpers / Controls ---
-  const togglePlayback = async () => {
-    const currentTrack = await TrackPlayer.getActiveTrackIndex();
-    if (currentTrack == null) return;
-
-    if (playbackState.state === State.Playing) {
-      await TrackPlayer.pause();
+  // --- Next/Prev Surah Logic ---
+  const loadNextSurah = () => {
+    if (currentSurahId < 114) {
+      setCurrentSurahId(prev => prev + 1);
     } else {
-      await TrackPlayer.play();
+      ToastAndroid.show('Quran Completed!', ToastAndroid.SHORT);
     }
   };
 
-  const skipToNext = async () => await TrackPlayer.skipToNext();
-  const skipToPrevious = async () => await TrackPlayer.skipToPrevious();
-
-  const playSpecificAyat = async index => {
-    await TrackPlayer.skip(index);
-    await TrackPlayer.play();
+  const loadPrevSurah = () => {
+    if (currentSurahId > 1) {
+      setCurrentSurahId(prev => prev - 1);
+    }
   };
 
-  const formatTime = seconds => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  // --- Button Handlers ---
+  // --- ROBUST NEXT LOGIC ---
+  const handleNextPress = async () => {
+    try {
+      // 1. Player se poocho: "Queue mein total kitni ayats hain?"
+      const queue = await TrackPlayer.getQueue();
+      // 2. Player se poocho: "Abhi hum kahan hain?"
+      const currentTrackIdx = await TrackPlayer.getActiveTrackIndex();
+
+      if (currentTrackIdx !== undefined && queue.length > 0) {
+        // 3. Logic: Agar hum Aakhri Ayat (Last Index) par hain
+        if (currentTrackIdx >= queue.length - 1) {
+          console.log('End of Surah reached -> Loading Next Surah');
+          loadNextSurah(); // 🚀 Next Surah Load karo
+        } else {
+          // Agar abhi ayats baqi hain -> Next Ayat par jao
+          await TrackPlayer.skipToNext();
+        }
+      }
+    } catch (error) {
+      console.log('Next Error:', error);
+    }
+  };
+
+  // --- ROBUST PREVIOUS LOGIC ---
+  const handlePrevPress = async () => {
+    try {
+      const currentTrackIdx = await TrackPlayer.getActiveTrackIndex();
+
+      if (currentTrackIdx !== undefined) {
+        // Logic: Agar hum Pehli Ayat (Index 0) par hain
+        if (currentTrackIdx === 0) {
+          console.log('Start of Surah -> Loading Previous Surah');
+          loadPrevSurah(); // 🔙 Previous Surah Load karo
+        } else {
+          await TrackPlayer.skipToPrevious();
+        }
+      }
+    } catch (error) {
+      console.log('Prev Error:', error);
+    }
+  };
+
+  const togglePlayback = async () => {
+    const state = playbackState.state || playbackState;
+    if (state === State.Playing) await TrackPlayer.pause();
+    else await TrackPlayer.play();
+  };
+
+  const getSliderValue = () => {
+    if (!progress.duration) return currentIndex;
+    return currentIndex + progress.position / progress.duration;
   };
 
   if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#0D3B33" />
-        <Text style={{ marginTop: 10 }}>Loading Surah {surahName}...</Text>
+        <Text style={{ marginTop: 10 }}>Loading Surah {currentSurahId}...</Text>
       </View>
     );
   }
 
+  const isPlaying = (playbackState.state || playbackState) === State.Playing;
+
   return (
     <View style={styles.container}>
-      {/* --- TOP: Player UI --- */}
+      {/* HEADER */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-down" size={30} color="#000" />
+        </TouchableOpacity>
+
+        <View style={{ alignItems: 'center' }}>
+          <Text style={styles.surahTitle}>
+            {currentSurahName || `Surah ${currentSurahId}`}
+          </Text>
+          <Text style={styles.reciterName}>Mishary Al-Afasy</Text>
+        </View>
+
+        {/* Direct Next Surah Button */}
+        <TouchableOpacity onPress={loadNextSurah}>
+          <Ionicons
+            name="play-skip-forward-circle-outline"
+            size={30}
+            color="#0D3B33"
+          />
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.playerSection}>
         <Image
           source={{
@@ -169,80 +256,83 @@ const AudioPlayerScreen = ({ route }) => {
           }}
           style={styles.artwork}
         />
-        <Text style={styles.surahTitle}>{surahName}</Text>
-        <Text style={styles.reciterName}>Mishary Al-Afasy</Text>
 
-        {/* Slider */}
+        {/* PROGRESS */}
         <View style={styles.progressContainer}>
           <Slider
             style={styles.slider}
             minimumValue={0}
-            maximumValue={progress.duration}
-            value={progress.position}
+            maximumValue={ayats.length}
+            value={getSliderValue()}
             minimumTrackTintColor="#0D3B33"
             maximumTrackTintColor="#ccc"
             thumbTintColor="#0D3B33"
-            onSlidingComplete={async value => {
-              await TrackPlayer.seekTo(value);
-            }}
+            onSlidingComplete={async val =>
+              await TrackPlayer.skip(Math.floor(val))
+            }
           />
           <View style={styles.timeContainer}>
-            <Text style={styles.timeText}>{formatTime(progress.position)}</Text>
-            <Text style={styles.timeText}>{formatTime(progress.duration)}</Text>
+            <Text style={styles.timeText}>
+              Ayat: {ayats[currentIndex]?.AyatNumber || currentIndex + 1}
+            </Text>
+            <Text style={styles.timeText}>Total: {ayats.length}</Text>
           </View>
         </View>
 
-        {/* Controls */}
+        {/* CONTROLS */}
         <View style={styles.controls}>
-          <TouchableOpacity onPress={skipToPrevious}>
+          <TouchableOpacity onPress={handlePrevPress}>
             <Ionicons name="play-skip-back" size={35} color="#0D3B33" />
           </TouchableOpacity>
 
           <TouchableOpacity onPress={togglePlayback} style={styles.playButton}>
             <Ionicons
-              // State handling adjusted for newer versions
-              name={playbackState.state === State.Playing ? 'pause' : 'play'}
+              name={isPlaying ? 'pause' : 'play'}
               size={40}
               color="#fff"
             />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={skipToNext}>
+          <TouchableOpacity onPress={handleNextPress}>
             <Ionicons name="play-skip-forward" size={35} color="#0D3B33" />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* --- BOTTOM: Ayat List --- */}
+      {/* AYAT LIST */}
       <View style={styles.listSection}>
-        <Text style={styles.listHeader}>Ayats List</Text>
         <FlatList
           data={ayats}
           keyExtractor={(item, index) => index.toString()}
           contentContainerStyle={{ paddingBottom: 20 }}
-          renderItem={({ item, index }) => (
-            <TouchableOpacity
-              onPress={() => playSpecificAyat(index)}
-              style={styles.ayatItem}
-            >
-              <View style={styles.ayatNumberBox}>
-                <Text style={styles.ayatNumber}>
-                  {item.AyatNumber || index + 1}
-                </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.arabicText}>{item.ArabicText}</Text>
-                {/* Agar English text available hai to show karein */}
-                {item.englishText ? (
+          renderItem={({ item, index }) => {
+            const isActive = index === currentIndex;
+            return (
+              <TouchableOpacity
+                onPress={async () => {
+                  await TrackPlayer.skip(index);
+                  await TrackPlayer.play();
+                }}
+                style={[styles.ayatItem, isActive && styles.activeAyatItem]}
+              >
+                <View
+                  style={[
+                    styles.ayatNumberBox,
+                    isActive && styles.activeNumberBox,
+                  ]}
+                >
                   <Text
-                    style={{ fontSize: 12, color: 'gray', textAlign: 'right' }}
+                    style={[styles.ayatNumber, isActive && { color: '#fff' }]}
                   >
-                    {item.englishText}
+                    {item.AyatNumber || index + 1}
                   </Text>
-                ) : null}
-              </View>
-            </TouchableOpacity>
-          )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.arabicText}>{item.ArabicText}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
         />
       </View>
     </View>
@@ -251,38 +341,26 @@ const AudioPlayerScreen = ({ route }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
-  // Player Section
-  playerSection: {
-    backgroundColor: '#fff',
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    padding: 20,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 15,
     alignItems: 'center',
-    elevation: 5,
   },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  playerSection: { alignItems: 'center', padding: 10 },
   artwork: { width: 80, height: 80, marginBottom: 10 },
-  surahTitle: { fontSize: 22, fontWeight: 'bold', color: '#0D3B33' },
-  reciterName: { fontSize: 14, color: 'gray', marginBottom: 15 },
-
-  // Slider
-  progressContainer: { width: '100%', marginBottom: 10 },
+  surahTitle: { fontSize: 20, fontWeight: 'bold', color: '#0D3B33' },
+  reciterName: { fontSize: 12, color: 'gray' },
+  progressContainer: { width: '90%', marginVertical: 10 },
   slider: { width: '100%', height: 40 },
   timeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 10,
   },
-  timeText: { fontSize: 12, color: '#555' },
-
-  // Controls
-  controls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 30,
-    marginBottom: 5,
-  },
+  timeText: { fontSize: 12, color: '#008000', fontWeight: 'bold' },
+  controls: { flexDirection: 'row', alignItems: 'center', gap: 30 },
   playButton: {
     backgroundColor: '#0D3B33',
     width: 60,
@@ -292,15 +370,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 5,
   },
-
-  // List Section
-  listSection: { flex: 1, padding: 20 },
-  listHeader: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
-  },
+  listSection: { flex: 1, padding: 15 },
   ayatItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -312,6 +382,12 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: '#eee',
   },
+  activeAyatItem: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#008000',
+    borderWidth: 1.5,
+  },
+  activeNumberBox: { backgroundColor: '#008000' },
   ayatNumberBox: {
     width: 30,
     height: 30,
