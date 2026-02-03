@@ -1,67 +1,60 @@
-// src/controllers/VoiceCommandController.js
-
-import AudioPlayerService from '../Service/PlayerService';
+import PlayerService from '../Service/PlayerService';
+import { ToastAndroid } from 'react-native';
 
 class VoiceCommandController {
-  processCommand = text => {
+  // Text aayega -> Hum check karenge -> Action lenge
+  processCommand(text) {
     if (!text) return;
 
-    // 1. Text ko chota (lowercase) karein ta ke matching asaan ho
-    const cmd = text.toLowerCase();
-    console.log('🧠 Brain Soch Raha Hai:', cmd);
+    // 1. Chota kar lo ta ke matching asaan ho
+    const command = text.toLowerCase();
+    console.log('🎤 Command mili:', command);
 
-    // --- A. PLAY COMMANDS ---
+    // --- CASE 1: PLAY ---
     if (
-      cmd.includes('play') ||
-      cmd.includes('chalao') ||
-      cmd.includes('start') ||
-      cmd.includes('shuru')
+      command.includes('play') ||
+      command.includes('chalao') ||
+      command.includes('start')
     ) {
-      AudioPlayerService.play();
-      return;
+      PlayerService.play();
+      ToastAndroid.show('Playing...', ToastAndroid.SHORT);
     }
 
-    // --- B. PAUSE COMMANDS ---
-    if (cmd.includes('pause') || cmd.includes('ruko') || cmd.includes('wait')) {
-      AudioPlayerService.pause();
-      return;
-    }
-
-    // --- C. STOP COMMANDS ---
-    if (
-      cmd.includes('stop') ||
-      cmd.includes('band') ||
-      cmd.includes('khatam')
+    // --- CASE 2: PAUSE / STOP ---
+    else if (
+      command.includes('pause') ||
+      command.includes('ruko') ||
+      command.includes('stop')
     ) {
-      AudioPlayerService.stop();
-      return;
+      PlayerService.pause();
+      ToastAndroid.show('Paused', ToastAndroid.SHORT);
     }
 
-    // --- D. NEXT COMMANDS ---
-    if (
-      cmd.includes('next') ||
-      cmd.includes('agla') ||
-      cmd.includes('age') ||
-      cmd.includes('forward')
+    // --- CASE 3: NEXT ---
+    else if (
+      command.includes('next') ||
+      command.includes('agla') ||
+      command.includes('age')
     ) {
-      AudioPlayerService.next();
-      return;
+      PlayerService.next();
+      ToastAndroid.show('Next Surah', ToastAndroid.SHORT);
     }
 
-    // --- E. PREVIOUS COMMANDS ---
-    if (
-      cmd.includes('previous') ||
-      cmd.includes('back') ||
-      cmd.includes('pichla') ||
-      cmd.includes('peeche')
+    // --- CASE 4: PREVIOUS ---
+    else if (
+      command.includes('previous') ||
+      command.includes('pichla') ||
+      command.includes('back')
     ) {
-      AudioPlayerService.previous();
-      return;
+      PlayerService.previous();
+      ToastAndroid.show('Previous Surah', ToastAndroid.SHORT);
     }
 
-    // --- F. UNKNOWN ---
-    console.log('⚠️ Command samajh nahi aayi:', cmd);
-  };
+    // Agar kuch samajh na aaye
+    else {
+      console.log('❌ Command samajh nahi ayi:', command);
+    }
+  }
 }
 
 export default new VoiceCommandController();

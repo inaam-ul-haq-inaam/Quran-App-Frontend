@@ -1,42 +1,93 @@
-import TrackPlayer, { State } from 'react-native-track-player';
+import TrackPlayer, {
+  State,
+  Capability,
+  AppKilledPlaybackBehavior,
+} from 'react-native-track-player';
 
-class AudioPlayerService {
-  // 1. Play
-  play = async () => {
-    const state = await TrackPlayer.getPlaybackState();
-    // State check zaroori hai (V4 syntax safe)
-    if ((state.state || state) !== State.Playing) {
-      await TrackPlayer.play();
+class PlayerService {
+  constructor() {
+    this.isSetup = false;
+    this.currentSurahId = 1;
+    this.onSurahChange = null;
+  }
+
+  registerCallback = callback => {
+    this.onSurahChange = callback;
+  };
+
+  setSurahID = id => {
+    this.currentSurahId = id;
+  };
+
+  setupPlayer = async () => {
+    if (this.isSetup) return;
+    try {
+      await TrackPlayer.setupPlayer();
+      await TrackPlayer.updateOptions({
+        android: {
+          appKilledPlaybackBehavior:
+            AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+        },
+        capabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+          Capability.Stop,
+        ],
+        compactCapabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+        ],
+      });
+      this.isSetup = true;
+    } catch (e) {
+      this.isSetup = true;
     }
   };
 
-  // 2. Pause
+  // 👇👇 UPDATE: Play Logic Simplified (Condition Hata Di) 👇👇
+  play = async () => {
+    try {
+      // 1. Setup Check
+      if (!this.isSetup) {
+        await this.setupPlayer();
+      }
+
+      // 2. Direct Command (Koi if/else nahi)
+      // TrackPlayer khud samajhdaar hai, agar already chal raha hoga to ignore kar dega
+      // Lekin agar Paused hai to Resume kar dega.
+      console.log('▶️ Service: Executing Play Command');
+      await TrackPlayer.play();
+    } catch (e) {
+      console.log('❌ Play Error:', e);
+    }
+  };
+
   pause = async () => {
-    await TrackPlayer.pause();
+    try {
+      await TrackPlayer.pause();
+    } catch (e) {}
   };
 
-  // 3. Stop
-  stop = async () => {
-    await TrackPlayer.stop();
-  };
-
-  // 4. Next Ayat (Agar Aakhri Ayat hui to Screen khud Next Surah load karegi)
   next = async () => {
     try {
-      await TrackPlayer.skipToNext();
-    } catch (e) {
-      console.log('No next track');
-    }
+      if (this.currentSurahId < 114) {
+        const nextId = this.currentSurahId + 1;
+        if (this.onSurahChange) this.onSurahChange(nextId);
+      }
+    } catch (e) {}
   };
 
-  // 5. Previous Ayat
   previous = async () => {
     try {
-      await TrackPlayer.skipToPrevious();
-    } catch (e) {
-      console.log('No previous track');
-    }
+      if (this.currentSurahId > 1) {
+        const prevId = this.currentSurahId - 1;
+        if (this.onSurahChange) this.onSurahChange(prevId);
+      }
+    } catch (e) {}
   };
 }
 
-export default new AudioPlayerService();
+export default new PlayerService();

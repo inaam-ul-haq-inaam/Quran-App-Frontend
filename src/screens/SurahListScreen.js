@@ -9,11 +9,12 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import axios from 'axios';
+import { BASE_URL } from '../Config/config';
 
 const SurahListScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [surahlist, setsurahList] = useState([]);
-  const API_URL = 'http://10.27.239.234:8000/Surah';
+  const API_URL = `${BASE_URL}/Surah`;
 
   useEffect(() => {
     fetchSurahs();
@@ -51,7 +52,7 @@ const SurahListScreen = ({ navigation }) => {
 
     navigation.navigate('AudioPlayerScreen', {
       surah_ID: item.surahNumber, // 🔹 backend ke liye exact field
-      surahName: item.englishText,
+      surahName: item.NameEnglish,
     });
   };
 
@@ -62,7 +63,9 @@ const SurahListScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.textContainer}>
-        <Text style={styles.titleText}>{item.NameEnglish}</Text>
+        <Text style={styles.titleText}>
+          {item.NameEnglish.split('(')[0].trim()}
+        </Text>
         <Text style={styles.subTitleText}>{item.NameArabic}</Text>
         <Text style={styles.subTitleText}>Total Ayats: {item.TotalAyat}</Text>
       </View>
@@ -83,7 +86,9 @@ const SurahListScreen = ({ navigation }) => {
         <FlatList
           data={surahlist}
           renderItem={renderItem}
-          keyExtractor={item => item.surahNumber.toString()}
+          keyExtractor={item => {
+            return item.surahNumber.toString();
+          }}
           contentContainerStyle={{ paddingBottom: 20 }}
         />
       )}

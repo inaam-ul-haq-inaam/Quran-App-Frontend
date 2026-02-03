@@ -1,49 +1,49 @@
-import VoiceCommandController from '../Service/VoiceCommandController'; // Jahan text bhejna hai
+// File Location: src/Service/Listener.js
+
+import VoiceCommandController from './VoiceCommandController'; // Path check kar lena
 
 class Listener {
   constructor() {
-    this.startMicCallback = null; // WebView start karne ka trigger
-    this.onMicStatusChange = null; // Button ka rang badalne ka trigger
+    this.startMicCallback = null;
+    this.onMicStatusChange = null;
   }
 
-  // 1. WebView yahan apne aap ko register karega
+  // 1. WebView (Mic) yahan register hoga
   registerWebView = callback => {
     this.startMicCallback = callback;
   };
 
-  // 2. Button yahan register karega ta ke usay status pata chale
+  // 2. Button yahan register hoga
   registerButtonUpdates = callback => {
     this.onMicStatusChange = callback;
   };
 
-  // 3. Button dabane par ye chalega
+  // 3. Jab Button dabega, ye Mic ko start karega
   startListening = () => {
     if (this.startMicCallback) {
-      console.log('Service: WebView ko signal bhej raha hun...');
-      this.startMicCallback(); // 🚀 WebView mein JS inject hogi
+      console.log('🚀 Service: Starting Mic...');
+      this.startMicCallback();
     } else {
-      console.warn('Service: WebView connect nahi hai! (Check TabNav)');
+      console.warn(
+        '⚠️ Service: WebView connected nahi hai! (App.js check karein)',
+      );
     }
   };
 
-  // 4. WebView se Data wapis aayega yahan
+  // 4. Jab Mic se jawab ayega
   handleWebViewMessage = data => {
-    // console.log("Raw Message:", data);
+    // console.log("Raw:", data);
 
     if (data === 'MIC_STARTED') {
-      // Button ko bolo RED ho jaye
-      if (this.onMicStatusChange) this.onMicStatusChange(true);
+      if (this.onMicStatusChange) this.onMicStatusChange(true); // Button Red karo
     } else if (data === 'MIC_STOPPED') {
-      // Button ko bolo GREEN ho jaye
-      if (this.onMicStatusChange) this.onMicStatusChange(false);
+      if (this.onMicStatusChange) this.onMicStatusChange(false); // Button Wapis Green karo
     } else if (data.startsWith('ERROR')) {
-      console.error('WebView Error:', data);
+      console.log('WebView Error:', data);
       if (this.onMicStatusChange) this.onMicStatusChange(false);
     } else {
-      // ✅ Asal Text aa gaya!
-      console.log('User Bola:', data);
-
-      // Agay Controller (Dimagh) ko bhejo
+      // ✅ Asal Command (Text)
+      console.log('🗣️ User Bola:', data);
       VoiceCommandController.processCommand(data);
     }
   };

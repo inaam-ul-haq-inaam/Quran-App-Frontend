@@ -10,13 +10,13 @@ import {
   BayanStackNav,
   HomeStackNav,
 } from '../navigation/StackNav';
-import ManazilScreen from '../screens/ManazilScreen';
+import { CreateChain } from '../navigation/StackNav';
 import SettingScreen from '../screens/SettingScreen';
 import { HideNav } from '../components/HideNav';
 
 // 👇 2. Aapki Nayi Files Import ki hain
-import VoiceMicButton from '../components/VoiceMicButton';
-import VoiceToText from '../Service/VoiceToText';
+import VoiceMicButton from '../components/MicrophoneButton';
+import VM from '../components/VoiceInputWebView';
 
 const TabNav = () => {
   const tab = createBottomTabNavigator();
@@ -39,7 +39,7 @@ const TabNav = () => {
                 iconName = focused ? 'book' : 'book-outline';
               } else if (route.name === 'Bayan') {
                 iconName = focused ? 'mic' : 'mic-outline';
-              } else if (route.name === 'Manazil') {
+              } else if (route.name === 'Chain') {
                 iconName = focused ? 'link' : 'link-outline';
               } else if (route.name === 'Setting') {
                 iconName = focused ? 'settings' : 'settings-outline';
@@ -78,12 +78,12 @@ const TabNav = () => {
             })}
           />
 
-          <tab.Screen name="Manazil" component={ManazilScreen} />
+          <tab.Screen name="Chain" component={CreateChain} />
           <tab.Screen name="Setting" component={SettingScreen} />
         </tab.Navigator>
 
         <VoiceMicButton />
-        <VoiceToText />
+        <VM />
       </View>
     </NavigationContainer>
   );

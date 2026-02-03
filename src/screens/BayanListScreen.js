@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,94 +6,96 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
+import axios from 'axios';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { BASE_URL } from '../Config/config';
 
 const BayanListScreen = ({ navigation }) => {
-  const [bayanList, setBayanList] = useState([
-    {
-      id: '1',
-      title: 'Surah Al-Baqarah',
-      ayat: 'Ayat 1-20',
-      speaker: 'Mufti Taqi Usmani',
-      duration: '1:15:30',
-      isFav: true,
-    },
-    {
-      id: '2',
-      title: 'Surah Al-Baqarah',
-      ayat: 'Ayat 21-40',
-      speaker: 'Mufti Taqi Usmani',
-      duration: '1:22:10',
-      isFav: false,
-    },
-    {
-      id: '3',
-      title: 'Surah Al-Araf',
-      ayat: 'Ayat 130-166',
-      speaker: 'Maulana Tariq Jameel',
-      duration: '45:12',
-      isFav: true,
-    },
-    {
-      id: '4',
-      title: 'Surah Yasin',
-      ayat: 'Full Surah',
-      speaker: 'Dr. Israr Ahmed',
-      duration: '2:30:00',
-      isFav: false,
-    },
-  ]);
+  const [bayanList, setBayanList] = useState([]);
+  const [filteredList, setFilteredList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = useState('');
 
-  const renderItem = ({ item }) => {
-    return (
-      <View style={styles.card}>
-        <View style={styles.leftSection}>
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.ayatText}>{item.ayat}</Text>
+  const fetchBayans = async () => {
+    try {
+      const API_URL = `${BASE_URL}/AllBayan`;
+      const response = await axios.get(API_URL);
 
-          <View style={styles.speakerRow}>
-            <Ionicons
-              name="mic-outline"
-              size={14}
-              color="#666"
-              style={{ marginRight: 4 }}
-            />
-            <Text style={styles.speakerText}>{item.speaker}</Text>
-          </View>
-
-          <Text style={styles.durationText}>{item.duration}</Text>
-        </View>
-
-        <View style={styles.rightSection}>
-          <TouchableOpacity>
-            <Ionicons
-              name={item.isFav ? 'heart' : 'heart-outline'}
-              size={24}
-              color={item.isFav ? '#FF4D4D' : '#9CA3AF'}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.playButton}
-            onPress={() =>
-              navigation.navigate('AudioPlayerScreen', { data: item })
-            }
-          >
-            <Ionicons
-              name="play"
-              size={20}
-              color="white"
-              style={{ marginLeft: 2 }}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
+      // Check if data exists in response
+      const data = response.data.Bayans || [];
+      setBayanList(data);
+      setFilteredList(data);
+    } catch (error) {
+      console.error('Axios Error:', error);
+      alert('Database se data nahi mil saka. Connection check karein.');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchBayans();
+  }, []);
+
+  const handleSearch = text => {
+    setSearchText(text);
+    const filtered = bayanList.filter(item => {
+      const itemData =
+        `${item.Title} ${item.SurahName} ${item.ScholorName}`.toUpperCase();
+      const textData = text.toUpperCase();
+      return itemData.indexOf(textData) > -1;
+    });
+    setFilteredList(filtered);
+  };
+
+  const renderItem = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.leftSection}>
+        <Text style={styles.title}>{item.Title}</Text>
+        <Text style={styles.ayatText}>
+          {item.SurahName} (Ayat {item.StartAyatID}-{item.EndAyatID})
+        </Text>
+
+        <View style={styles.speakerRow}>
+          <Ionicons
+            name="mic-outline"
+            size={14}
+            color="#666"
+            style={{ marginRight: 4 }}
+          />
+          <Text style={styles.speakerText}>{item.ScholorName}</Text>
+        </View>
+
+        <Text style={styles.durationText}>{item.Duration}</Text>
+      </View>
+
+      <View style={styles.rightSection}>
+        <TouchableOpacity>
+          <Ionicons name="heart-outline" size={24} color="#9CA3AF" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.playButton}
+          onPress={() =>
+            navigation.navigate('AudioPlayerScreen', { data: item })
+          }
+        >
+          <Ionicons
+            name="play"
+            size={20}
+            color="white"
+            style={{ marginLeft: 2 }}
+          />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color="black" />
@@ -120,17 +122,35 @@ const BayanListScreen = ({ navigation }) => {
         />
         <TextInput
           placeholder="Search by Surah or speaker..."
+          placeholderTextColor="#9CA3AF"
           style={styles.searchInput}
+          value={searchText}
+          onChangeText={text => handleSearch(text)}
         />
       </View>
 
-      {/* List */}
-      <FlatList
-        data={bayanList}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={{ paddingBottom: 20 }}
-      />
+      {/* List with Loading */}
+      {loading ? (
+        <View
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+        >
+          <ActivityIndicator size="large" color="#00ADEF" />
+        </View>
+      ) : (
+        <FlatList
+          data={filteredList}
+          renderItem={renderItem}
+          keyExtractor={item => item.BayanID.toString()}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          ListEmptyComponent={() => (
+            <Text
+              style={{ textAlign: 'center', marginTop: 20, color: '#9CA3AF' }}
+            >
+              Koi bayan nahi mila
+            </Text>
+          )}
+        />
+      )}
     </View>
   );
 };
@@ -140,7 +160,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -155,7 +174,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -175,7 +193,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: 'black',
   },
-
   card: {
     backgroundColor: 'white',
     marginHorizontal: 15,
@@ -184,14 +201,12 @@ const styles = StyleSheet.create({
     padding: 15,
     flexDirection: 'row',
     justifyContent: 'space-between',
-
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
   },
-
   leftSection: {
     flex: 1,
   },
@@ -214,14 +229,13 @@ const styles = StyleSheet.create({
   },
   speakerText: {
     fontSize: 13,
-    color: '#6B7280', // Gray
+    color: '#6B7280',
   },
   durationText: {
     fontSize: 12,
     color: '#9CA3AF',
     marginTop: 2,
   },
-
   rightSection: {
     justifyContent: 'space-between',
     alignItems: 'flex-end',

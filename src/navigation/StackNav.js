@@ -1,9 +1,10 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import SurahListScreen from '../screens/SurahListScreen';
-import AudioPlayerScreen from '../screens/AudioPlayerScreen';
+import AudioPlayerScreen from '../screens/AudioPlayer/AudioPlayerScreen';
 import BayanListScreen from '../screens/BayanListScreen';
-
+import chain from '../screens/ChainScreen';
+import newChain from '../screens/CreateChain';
 import HomeScreen from '../screens/HomeScreen';
 import VoiceToText from '../screens/VoiceToText';
 
@@ -55,6 +56,14 @@ export const BayanStackNav = () => {
         initialParams={{ name: 'bayan audio player' }}
         options={{ headerShown: false }}
       />
+    </stack.Navigator>
+  );
+};
+export const CreateChain = () => {
+  return (
+    <stack.Navigator>
+      <stack.Screen name="chain" component={chain} />
+      <stack.Screen name="newChain" component={newChain} />
     </stack.Navigator>
   );
 };
