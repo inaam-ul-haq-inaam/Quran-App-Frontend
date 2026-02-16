@@ -1,3 +1,4 @@
+//PlayerService.js
 import TrackPlayer, {
   State,
   Capability,
@@ -47,17 +48,9 @@ class PlayerService {
     }
   };
 
-  // 👇👇 UPDATE: Play Logic Simplified (Condition Hata Di) 👇👇
   play = async () => {
     try {
-      // 1. Setup Check
-      if (!this.isSetup) {
-        await this.setupPlayer();
-      }
-
-      // 2. Direct Command (Koi if/else nahi)
-      // TrackPlayer khud samajhdaar hai, agar already chal raha hoga to ignore kar dega
-      // Lekin agar Paused hai to Resume kar dega.
+      if (!this.isSetup) await this.setupPlayer();
       console.log('▶️ Service: Executing Play Command');
       await TrackPlayer.play();
     } catch (e) {
@@ -75,6 +68,7 @@ class PlayerService {
     try {
       if (this.currentSurahId < 114) {
         const nextId = this.currentSurahId + 1;
+        this.setSurahID(nextId);
         if (this.onSurahChange) this.onSurahChange(nextId);
       }
     } catch (e) {}
@@ -84,9 +78,47 @@ class PlayerService {
     try {
       if (this.currentSurahId > 1) {
         const prevId = this.currentSurahId - 1;
+        this.setSurahID(prevId);
         if (this.onSurahChange) this.onSurahChange(prevId);
       }
     } catch (e) {}
+  };
+
+  // ✅ Play specific Surah with optional from/to ayats
+  playSurah = async (surahId, ayatArray) => {
+    try {
+      if (!this.isSetup) await this.setupPlayer();
+
+      if (!surahId) {
+        console.log('❌ Surah ID not provided to playSurah');
+        return;
+      }
+
+      if (!Array.isArray(ayatArray) || ayatArray.length === 0) {
+        console.log('❌ No ayats provided for playSurah');
+        return;
+      }
+
+      this.setSurahID(surahId);
+
+      if (this.onSurahChange) this.onSurahChange(surahId);
+
+      await TrackPlayer.reset();
+
+      const tracks = ayatArray.map(ayat => ({
+        id: ayat.AyatNumber.toString(),
+        url: ayat.audio,
+        title: `Surah ${surahId} Ayat ${ayat.AyatNumber}`,
+      }));
+
+      await TrackPlayer.add(tracks);
+
+      console.log(`▶️ Playing Surah ID: ${surahId} from Ayat ${tracks[0].id}`);
+
+      await TrackPlayer.play();
+    } catch (e) {
+      console.log('❌ playSurah Error:', e);
+    }
   };
 }
 

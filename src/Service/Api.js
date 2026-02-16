@@ -1,15 +1,24 @@
+//Api.js
 import axios from 'axios';
 import { BASE_URL } from '../Config/config';
 
-export const getSurahAyats = async surahId => {
+export const getSurahAyats = async (
+  surahId,
+  fromAyat = null,
+  toAyat = null,
+) => {
   try {
     const url = `${BASE_URL}/get_Surah_Ayats`;
 
-    console.log(`📡 Connecting to: ${url}`);
+    console.log(
+      `📡 Connecting to: ${url} with SurahID: ${surahId}, from: ${fromAyat}, to: ${toAyat}`,
+    );
 
     const response = await axios.post(url, {
       surah_ID: surahId,
       reciterid: 1,
+      fromAyat: fromAyat,
+      toAyat: toAyat,
     });
 
     if (response.data && response.data.data) {

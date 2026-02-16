@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+// useAudioPlayer.js
+
+import { useEffect, useState, useRef } from 'react';
 import TrackPlayer, {
   Capability,
   State,
@@ -6,17 +8,10 @@ import TrackPlayer, {
   Event,
   useProgress,
 } from 'react-native-track-player';
+
 import { getSurahAyats } from '../../Service/Api';
 import PlayerService from '../../Service/PlayerService';
 import { preparePlayerQueue } from './QueuePlayer';
-
-const SURAH_NAMES = {
-  1: 'Al-Fatiha',
-  2: 'Al-Baqarah',
-  36: 'Ya-Sin',
-  55: 'Ar-Rahman',
-  67: 'Al-Mulk',
-};
 
 export const useAudioPlayer = surahIdParam => {
   const [surahId, setSurahId] = useState(parseInt(surahIdParam));
@@ -30,7 +25,13 @@ export const useAudioPlayer = surahIdParam => {
 
   const isPlaying = (playbackState.state || playbackState) === State.Playing;
 
-  // Next Button Logic
+  // 🔥 IMPORTANT: Skip flag to prevent duplicate fetch
+  const skipFetchRef = useRef(false);
+
+  // ===============================
+  // Next / Previous Buttons
+  // ===============================
+
   const handleNext = async () => {
     if (surahId < 114) {
       console.log('🔄 Button Next:', surahId + 1);
@@ -38,7 +39,6 @@ export const useAudioPlayer = surahIdParam => {
     }
   };
 
-  // Previous Button Logic
   const handlePrevious = async () => {
     if (surahId > 1) {
       console.log('🔄 Button Prev:', surahId - 1);
@@ -46,25 +46,48 @@ export const useAudioPlayer = surahIdParam => {
     }
   };
 
-  // 🔊 Player Setup & Data Load
+  // ===============================
+  // Voice Callback Registration
+  // ===============================
+
   useEffect(() => {
-    // 👇 FIX 1: Callback ko sahi tarah register karein with Logs
-    const onVoiceCommand = newId => {
+    const onVoiceCommand = (newId, skipFetch = false) => {
       console.log('🎤 Voice Command Received in Hook:', newId);
+
+      if (skipFetch) {
+        skipFetchRef.current = true; // prevent duplicate API call
+      }
+
       setSurahId(newId);
     };
+
     PlayerService.registerCallback(onVoiceCommand);
 
+    return () => {
+      PlayerService.registerCallback(null);
+    };
+  }, []);
+
+  // ===============================
+  // Load Surah (Only When Needed)
+  // ===============================
+
+  useEffect(() => {
     const load = async () => {
       try {
+        // 🚫 If voice already fetched ayats, skip fetching
+        if (skipFetchRef.current) {
+          console.log('⏭ Skipping fetch (voice already handled)');
+          skipFetchRef.current = false;
+          return;
+        }
+
         setLoading(true);
 
-        // 👇 FIX 2: Service ko batao k Current ID kya hai (BOHT ZAROORI)
-        // Agar ye nahi karenge to Service purani ID par atka rahega
         console.log('📥 Syncing Service ID:', surahId);
         PlayerService.setSurahID(surahId);
 
-        // Player Setup Check
+        // Ensure Player Setup
         try {
           await TrackPlayer.getActiveTrackIndex();
         } catch {
@@ -79,6 +102,7 @@ export const useAudioPlayer = surahIdParam => {
           });
         }
 
+        // 🔥 Fetch Full Surah (for Next/Previous button)
         let data = await getSurahAyats(surahId);
 
         if (!data || data.length === 0) {
@@ -87,26 +111,9 @@ export const useAudioPlayer = surahIdParam => {
           return;
         }
 
-        // Fatiha Fix
-        if (surahId === 1 && data.length > 7) {
-          data = data.slice(0, 7);
-        }
-
-        // Bismillah Logic
-        if (surahId !== 1 && surahId !== 9) {
-          const first = data[0]?.ArabicText || '';
-          if (!first.includes('بِسْمِ')) {
-            data.unshift({
-              AyatNumber: 0,
-              ArabicText: 'بِسْمِ ٱللَّٰهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ',
-            });
-          } else {
-            data[0].AyatNumber = 0;
-          }
-        }
-
         const name =
-          data[0].NameEnglish.split('(')[0].trim() || `Surah ${surahId}`;
+          data[0]?.NameEnglish?.split('(')[0]?.trim() || `Surah ${surahId}`;
+
         setSurahName(name);
         setAyats(data);
 
@@ -121,12 +128,14 @@ export const useAudioPlayer = surahIdParam => {
     load();
 
     return () => {
-      PlayerService.registerCallback(null);
       TrackPlayer.stop();
     };
   }, [surahId]);
 
+  // ===============================
   // Track Index Listener
+  // ===============================
+
   useEffect(() => {
     const sub = TrackPlayer.addEventListener(
       Event.PlaybackActiveTrackChanged,
@@ -136,8 +145,13 @@ export const useAudioPlayer = surahIdParam => {
         }
       },
     );
+
     return () => sub.remove();
   }, []);
+
+  // ===============================
+  // Return Controls
+  // ===============================
 
   return {
     ayats,
@@ -145,6 +159,7 @@ export const useAudioPlayer = surahIdParam => {
     loading,
     currentIndex,
     isPlaying,
+    progress,
     play: async () => await TrackPlayer.play(),
     pause: async () => await TrackPlayer.pause(),
     next: handleNext,

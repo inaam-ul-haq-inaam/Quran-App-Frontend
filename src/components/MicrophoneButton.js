@@ -33,7 +33,6 @@ const MicrophoneButton = () => {
         }
       }
 
-      // Listener ko bolo: Mic Chalao!
       VoiceService.startListening();
     }
   };

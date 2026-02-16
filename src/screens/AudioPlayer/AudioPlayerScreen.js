@@ -26,7 +26,6 @@ export default function AudioPlayerScreen({ route }) {
     seek,
   } = useAudioPlayer(route.params.surah_ID, route.params.surahName);
 
-  // 1. Loading State Design
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -40,18 +39,14 @@ export default function AudioPlayerScreen({ route }) {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* --- TOP SECTION (Fixed Header & Controls) --- */}
       <View style={styles.topCard}>
-        {/* Header Info */}
         <View style={styles.headerInfo}>
           <Text style={styles.surahTitle}>{surahName || 'Surah'}</Text>
           <Text style={styles.reciterName}>Mishary Rashid Al-Afasy</Text>
         </View>
 
-        {/* Decoration / Divider */}
         <View style={styles.divider} />
 
-        {/* Player Controls Component */}
         <View style={styles.controlsWrapper}>
           <PlayerControls
             isPlaying={isPlaying}
@@ -63,7 +58,6 @@ export default function AudioPlayerScreen({ route }) {
         </View>
       </View>
 
-      {/* --- BOTTOM SECTION (Scrollable List) --- */}
       <View style={styles.listContainer}>
         <View style={styles.listHeader}>
           <Text style={styles.listTitle}>Ayat List</Text>
@@ -77,13 +71,11 @@ export default function AudioPlayerScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
-  // Main Container
   container: {
     flex: 1,
-    backgroundColor: '#F4F6F8', // Very light grey background
+    backgroundColor: '#F4F6F8',
   },
 
-  // Loading Screen
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -97,7 +89,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // Top Card (Shadow & Curves)
   topCard: {
     backgroundColor: '#FFFFFF',
     paddingTop: 20,
@@ -105,17 +96,16 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
     alignItems: 'center',
-    // Shadow for iOS
+
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
-    // Shadow for Android
+
     elevation: 8,
     zIndex: 1,
   },
 
-  // Header Typography
   headerInfo: {
     alignItems: 'center',
     marginBottom: 15,
@@ -123,18 +113,17 @@ const styles = StyleSheet.create({
   surahTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1F4037', // Deep Islamic Green
-    fontFamily: 'serif', // Elegant font
+    color: '#1F4037',
+    fontFamily: 'serif',
     letterSpacing: 0.5,
   },
   reciterName: {
     fontSize: 14,
-    color: '#8E8E93', // Soft Grey
+    color: '#8E8E93',
     marginTop: 5,
     fontWeight: '500',
   },
 
-  // Divider Line
   divider: {
     width: 40,
     height: 4,
@@ -143,13 +132,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  // Controls Wrapper (Spacing)
   controlsWrapper: {
     width: '100%',
     paddingHorizontal: 20,
   },
 
-  // List Section
   listContainer: {
     flex: 1,
     paddingTop: 20,
