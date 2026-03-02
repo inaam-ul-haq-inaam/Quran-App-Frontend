@@ -28,10 +28,6 @@ export const useAudioPlayer = surahIdParam => {
   // 🔥 IMPORTANT: Skip flag to prevent duplicate fetch
   const skipFetchRef = useRef(false);
 
-  // ===============================
-  // Next / Previous Buttons
-  // ===============================
-
   const handleNext = async () => {
     if (surahId < 114) {
       console.log('🔄 Button Next:', surahId + 1);
@@ -45,10 +41,6 @@ export const useAudioPlayer = surahIdParam => {
       setSurahId(prev => prev - 1);
     }
   };
-
-  // ===============================
-  // Voice Callback Registration
-  // ===============================
 
   useEffect(() => {
     const onVoiceCommand = (newId, skipFetch = false) => {
@@ -67,10 +59,6 @@ export const useAudioPlayer = surahIdParam => {
       PlayerService.registerCallback(null);
     };
   }, []);
-
-  // ===============================
-  // Load Surah (Only When Needed)
-  // ===============================
 
   useEffect(() => {
     const load = async () => {
@@ -132,10 +120,6 @@ export const useAudioPlayer = surahIdParam => {
     };
   }, [surahId]);
 
-  // ===============================
-  // Track Index Listener
-  // ===============================
-
   useEffect(() => {
     const sub = TrackPlayer.addEventListener(
       Event.PlaybackActiveTrackChanged,
@@ -148,10 +132,6 @@ export const useAudioPlayer = surahIdParam => {
 
     return () => sub.remove();
   }, []);
-
-  // ===============================
-  // Return Controls
-  // ===============================
 
   return {
     ayats,

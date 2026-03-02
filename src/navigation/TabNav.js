@@ -4,7 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-import HomeScreen from '../screens/HomeScreen';
+import HomeScreen from '../screens/HomeScreen/HomeScreen';
 import {
   QuranStackNav,
   BayanStackNav,

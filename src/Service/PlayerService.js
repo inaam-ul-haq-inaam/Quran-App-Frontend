@@ -120,6 +120,38 @@ class PlayerService {
       console.log('❌ playSurah Error:', e);
     }
   };
+
+  async jumpToAyat(targetAyatNumber) {
+    try {
+      const queue = await TrackPlayer.getQueue();
+
+      if (!queue || queue.length === 0) {
+        console.log('Queue khali hai! Koi Surah play nahi ho rahi.');
+        return;
+      }
+
+      const trackIndex = queue.findIndex(track => {
+        return (
+          Number(track.id) === Number(targetAyatNumber) ||
+          (track.title && track.title.includes(targetAyatNumber.toString()))
+        );
+      });
+
+      if (trackIndex !== -1) {
+        await TrackPlayer.skip(trackIndex);
+        await TrackPlayer.play();
+        console.log(
+          `✅ Successfully jumped to Ayat ${targetAyatNumber} (Index: ${trackIndex})`,
+        );
+      } else {
+        console.log(
+          `❌ Ayat ${targetAyatNumber} is waqt playlist (queue) mein nahi hai.`,
+        );
+      }
+    } catch (error) {
+      console.error('Jump To Ayat Error:', error);
+    }
+  }
 }
 
 export default new PlayerService();

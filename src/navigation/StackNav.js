@@ -1,12 +1,13 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import SurahListScreen from '../screens/SurahListScreen';
+import SurahListScreen from '../screens/SurahListScreen/SurahListScreen';
 import AudioPlayerScreen from '../screens/AudioPlayer/AudioPlayerScreen';
-import BayanListScreen from '../screens/BayanListScreen';
+import BayanListScreen from '../screens/BayanListScreen/BayanListScreen';
 import chain from '../screens/ChainScreen';
 import newChain from '../screens/CreateChain';
-import HomeScreen from '../screens/HomeScreen';
+import HomeScreen from '../screens/HomeScreen/HomeScreen';
 import VoiceToText from '../screens/VoiceToText';
+import BayanPlayer from '../screens/BayanAudioPlayer/BayanPlayer';
 
 const stack = createNativeStackNavigator();
 
@@ -51,8 +52,8 @@ export const BayanStackNav = () => {
         options={{ headerShown: false }}
       />
       <stack.Screen
-        name="AudioPlayerScreen"
-        component={AudioPlayerScreen}
+        name="BayanPlayer"
+        component={BayanPlayer}
         initialParams={{ name: 'bayan audio player' }}
         options={{ headerShown: false }}
       />

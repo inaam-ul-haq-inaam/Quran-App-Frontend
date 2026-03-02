@@ -35,21 +35,10 @@ class VoiceCommandController {
       const surahId = data.token.surah;
       const fromAyat = data.token.from;
       const toAyat = data.token.to;
-
-      console.log(
-        '👉 Extracted:',
-        'Action:',
-        action,
-        '| Surah:',
-        surahId,
-        '| From:',
-        fromAyat,
-        '| To:',
-        toAyat,
-      );
+      const ayatNumber = data.token.ayatNumber;
 
       if (!action) {
-        ToastAndroid.show('Command samajh nahi aya', ToastAndroid.SHORT);
+        ToastAndroid.show('Command Unknown', ToastAndroid.SHORT);
         return;
       }
 
@@ -57,6 +46,7 @@ class VoiceCommandController {
         surahId,
         fromAyat,
         toAyat,
+        ayatNumber,
       });
     } catch (error) {
       console.log('❌ Voice API Error:', error);
@@ -70,7 +60,6 @@ class VoiceCommandController {
 
     switch (action.toLowerCase()) {
       case 'play':
-        // 🛑 If Surah ID missing, just resume current audio
         if (!tokenData?.surahId) {
           console.log('⚠ No Surah ID provided. Resuming...');
           PlayerService.play();
@@ -126,6 +115,18 @@ class VoiceCommandController {
         ToastAndroid.show('⏮ Previous', ToastAndroid.SHORT);
         break;
 
+      case 'jump':
+        if (tokenData.ayatNumber) {
+          // Yahan hum PlayerService ka naya function call kar rahe hain
+          PlayerService.jumpToAyat(tokenData.ayatNumber);
+          ToastAndroid.show(
+            `⏭ Jumping to Ayat ${tokenData.ayatNumber}`,
+            ToastAndroid.SHORT,
+          );
+        } else {
+          ToastAndroid.show('Ayat number samajh nahi aaya', ToastAndroid.SHORT);
+        }
+        break;
       default:
         console.log('⚠ Unknown Action:', action);
         ToastAndroid.show('Unknown Command', ToastAndroid.SHORT);
