@@ -6,6 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { styles } from './style';
@@ -18,33 +19,34 @@ const BayanListScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      <StatusBar barStyle="dark-content" backgroundColor="white" />
+
+      {/* Header - Styled like Quran Screen */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={24} color="black" />
+          <Ionicons name="arrow-back" size={24} color="#2D3436" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Islamic Lectures (Bayan)</Text>
+        <Text style={styles.headerTitle}>Islamic Bayans</Text>
         <View style={{ flexDirection: 'row' }}>
-          <Ionicons
-            name="mic-outline"
-            size={24}
-            color="#666"
-            style={{ marginRight: 15 }}
-          />
-          <Ionicons name="settings-outline" size={24} color="#666" />
+          <TouchableOpacity style={{ marginRight: 15 }}>
+            <Ionicons name="mic-outline" size={22} color="#636E72" />
+          </TouchableOpacity>
+          <TouchableOpacity>
+            <Ionicons name="filter-outline" size={22} color="#636E72" />
+          </TouchableOpacity>
         </View>
       </View>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Ionicons
-          name="search"
+          name="search-outline"
           size={20}
           color="#9CA3AF"
           style={styles.searchIcon}
         />
         <TextInput
-          placeholder="Search by Surah or speaker..."
+          placeholder="Search speaker or topic..."
           placeholderTextColor="#9CA3AF"
           style={styles.searchInput}
           value={searchText}
@@ -57,22 +59,23 @@ const BayanListScreen = ({ navigation }) => {
         <View
           style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
         >
-          <ActivityIndicator size="large" color="#00ADEF" />
+          <ActivityIndicator size="large" color="#065F46" />
         </View>
       ) : (
         <FlatList
           data={filteredList}
           keyExtractor={item => item.BayanID.toString()}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={{ paddingBottom: 30, paddingTop: 10 }}
           renderItem={({ item }) => (
             <BayanCard item={item} onPressPlay={() => handlePlayBayan(item)} />
           )}
           ListEmptyComponent={() => (
-            <Text
-              style={{ textAlign: 'center', marginTop: 20, color: '#9CA3AF' }}
-            >
-              Koi bayan nahi mila
-            </Text>
+            <View style={{ marginTop: 50, alignItems: 'center' }}>
+              <Ionicons name="search-outline" size={50} color="#E5E7EB" />
+              <Text style={{ marginTop: 10, color: '#9CA3AF', fontSize: 16 }}>
+                Koi bayan nahi mila
+              </Text>
+            </View>
           )}
         />
       )}

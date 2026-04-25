@@ -29,13 +29,26 @@ export const useSurahController = navigation => {
   };
 
   const openPlayer = item => {
-    if (!item || !item.surahNumber || !item.NameEnglish) {
-      Alert.alert('Error', 'Invalid Surah data.');
+    // 🐞 Debugging ke liye: console mein check karein API kya keys bhej rahi hai
+    console.log('🟢 Manual Click Item Data:', item);
+
+    // ✅ Fallbacks laga diye hain (API jo bhi format bheje, ye catch kar lega)
+    const sId = item.surahNumber || item.SurahID || item.id || item.Surah_ID;
+    const sName =
+      item.NameEnglish || item.surahName || item.name || item.SurahName;
+
+    if (!sId || !sName) {
+      Alert.alert(
+        'Error',
+        'Surah ka data theek se nahi mil raha. Console check karein.',
+      );
       return;
     }
+
+    // Ab perfectly wahi parameters ja rahe hain jo AudioPlayer ko chahiye
     navigation.navigate('AudioPlayerScreen', {
-      surah_ID: item.surahNumber,
-      surahName: item.NameEnglish,
+      surah_ID: sId,
+      surahName: sName,
     });
   };
 

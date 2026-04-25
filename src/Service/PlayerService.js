@@ -1,157 +1,179 @@
-//PlayerService.js
 import TrackPlayer, {
   State,
   Capability,
   AppKilledPlaybackBehavior,
 } from 'react-native-track-player';
 
-class PlayerService {
-  constructor() {
-    this.isSetup = false;
-    this.currentSurahId = 1;
-    this.onSurahChange = null;
+// --- Private State (Variables) ---
+let isSetup = false;
+let currentSurahId = 1;
+let currentBayanId = 1;
+let callback = null;
+
+// --- Helper Functions ---
+
+const registerCallback = cb => {
+  callback = cb;
+};
+
+const setSurahID = id => {
+  currentSurahId = parseInt(id) || 1;
+};
+
+const setBayanID = id => {
+  currentBayanId = parseInt(id) || 1;
+  console.log('✅ PlayerService: Bayan ID set to', currentBayanId);
+};
+
+const setupPlayer = async () => {
+  if (isSetup) return;
+  try {
+    await TrackPlayer.setupPlayer();
+    await TrackPlayer.updateOptions({
+      android: {
+        appKilledPlaybackBehavior:
+          AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+      },
+      capabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SkipToNext,
+        Capability.SkipToPrevious,
+        Capability.Stop,
+      ],
+      compactCapabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SkipToNext,
+      ],
+    });
+    isSetup = true;
+  } catch (e) {
+    isSetup = true;
   }
+};
 
-  registerCallback = callback => {
-    this.onSurahChange = callback;
-  };
+// PlayerService.js
 
-  setSurahID = id => {
-    this.currentSurahId = id;
-  };
+const play = async () => {
+  try {
+    const state = await TrackPlayer.getState();
+    console.log('🔍 Current State before play:', state);
 
-  setupPlayer = async () => {
-    if (this.isSetup) return;
-    try {
-      await TrackPlayer.setupPlayer();
-      await TrackPlayer.updateOptions({
-        android: {
-          appKilledPlaybackBehavior:
-            AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
-        },
-        capabilities: [
-          Capability.Play,
-          Capability.Pause,
-          Capability.SkipToNext,
-          Capability.SkipToPrevious,
-          Capability.Stop,
-        ],
-        compactCapabilities: [
-          Capability.Play,
-          Capability.Pause,
-          Capability.SkipToNext,
-        ],
-      });
-      this.isSetup = true;
-    } catch (e) {
-      this.isSetup = true;
+    // Kabhi kabhi player 'Ready' state mein hota hai par play nahi karta
+    // Isliye hum direct play call karte hain
+    await TrackPlayer.play();
+
+    if (this.callback) {
+      this.callback(this.surahID, true, 'surah');
     }
-  };
-
-  play = async () => {
-    try {
-      if (!this.isSetup) await this.setupPlayer();
-      console.log('▶️ Service: Executing Play Command');
-      await TrackPlayer.play();
-    } catch (e) {
-      console.log('❌ Play Error:', e);
-    }
-  };
-
-  pause = async () => {
-    try {
-      await TrackPlayer.pause();
-    } catch (e) {}
-  };
-
-  next = async () => {
-    try {
-      if (this.currentSurahId < 114) {
-        const nextId = this.currentSurahId + 1;
-        this.setSurahID(nextId);
-        if (this.onSurahChange) this.onSurahChange(nextId);
-      }
-    } catch (e) {}
-  };
-
-  previous = async () => {
-    try {
-      if (this.currentSurahId > 1) {
-        const prevId = this.currentSurahId - 1;
-        this.setSurahID(prevId);
-        if (this.onSurahChange) this.onSurahChange(prevId);
-      }
-    } catch (e) {}
-  };
-
-  // ✅ Play specific Surah with optional from/to ayats
-  playSurah = async (surahId, ayatArray) => {
-    try {
-      if (!this.isSetup) await this.setupPlayer();
-
-      if (!surahId) {
-        console.log('❌ Surah ID not provided to playSurah');
-        return;
-      }
-
-      if (!Array.isArray(ayatArray) || ayatArray.length === 0) {
-        console.log('❌ No ayats provided for playSurah');
-        return;
-      }
-
-      this.setSurahID(surahId);
-
-      if (this.onSurahChange) this.onSurahChange(surahId);
-
-      await TrackPlayer.reset();
-
-      const tracks = ayatArray.map(ayat => ({
-        id: ayat.AyatNumber.toString(),
-        url: ayat.audio,
-        title: `Surah ${surahId} Ayat ${ayat.AyatNumber}`,
-      }));
-
-      await TrackPlayer.add(tracks);
-
-      console.log(`▶️ Playing Surah ID: ${surahId} from Ayat ${tracks[0].id}`);
-
-      await TrackPlayer.play();
-    } catch (e) {
-      console.log('❌ playSurah Error:', e);
-    }
-  };
-
-  async jumpToAyat(targetAyatNumber) {
-    try {
-      const queue = await TrackPlayer.getQueue();
-
-      if (!queue || queue.length === 0) {
-        console.log('Queue khali hai! Koi Surah play nahi ho rahi.');
-        return;
-      }
-
-      const trackIndex = queue.findIndex(track => {
-        return (
-          Number(track.id) === Number(targetAyatNumber) ||
-          (track.title && track.title.includes(targetAyatNumber.toString()))
-        );
-      });
-
-      if (trackIndex !== -1) {
-        await TrackPlayer.skip(trackIndex);
-        await TrackPlayer.play();
-        console.log(
-          `✅ Successfully jumped to Ayat ${targetAyatNumber} (Index: ${trackIndex})`,
-        );
-      } else {
-        console.log(
-          `❌ Ayat ${targetAyatNumber} is waqt playlist (queue) mein nahi hai.`,
-        );
-      }
-    } catch (error) {
-      console.error('Jump To Ayat Error:', error);
-    }
+  } catch (e) {
+    console.log('❌ Play Error:', e);
   }
-}
+};
 
-export default new PlayerService();
+const pause = async () => {
+  try {
+    await TrackPlayer.pause();
+    if (this.callback) {
+      this.callback(this.surahID, false, 'surah');
+    }
+  } catch (e) {
+    console.log('❌ Pause Error:', e);
+  }
+};
+
+// 🔵 SURAH NAVIGATION
+const next = async () => {
+  if (currentSurahId < 114) {
+    const nextId = currentSurahId + 1;
+    setSurahID(nextId);
+    if (callback) callback(nextId, false, 'surah');
+  }
+};
+
+const previous = async () => {
+  if (currentSurahId > 1) {
+    const prevId = currentSurahId - 1;
+    setSurahID(prevId);
+    if (callback) callback(prevId, false, 'surah');
+  }
+};
+
+// ✅ PLAY LOGIC
+const playSurah = async (surahId, ayatArray) => {
+  try {
+    if (!isSetup) await setupPlayer();
+    if (!surahId || !Array.isArray(ayatArray) || ayatArray.length === 0) return;
+
+    setSurahID(surahId);
+    if (callback) callback(surahId, false, 'surah');
+
+    await TrackPlayer.reset();
+
+    const tracks = ayatArray.map(ayat => ({
+      id: ayat.AyatNumber.toString(),
+      url: ayat.audio,
+      title: `Surah ${surahId} Ayat ${ayat.AyatNumber}`,
+      artist: 'Quran Majeed',
+    }));
+
+    await TrackPlayer.add(tracks);
+    await TrackPlayer.play();
+  } catch (e) {
+    console.log('❌ playSurah Error:', e);
+  }
+};
+
+const jumpToAyat = async targetAyatNumber => {
+  try {
+    const queue = await TrackPlayer.getQueue();
+    if (!queue || queue.length === 0) return;
+
+    const trackIndex = queue.findIndex(
+      track =>
+        Number(track.id) === Number(targetAyatNumber) ||
+        track.title?.includes(targetAyatNumber.toString()),
+    );
+
+    if (trackIndex !== -1) {
+      await TrackPlayer.skip(trackIndex);
+      await TrackPlayer.play();
+    }
+  } catch (error) {
+    console.error('Jump To Ayat Error:', error);
+  }
+};
+
+// 🟠 BAYAN NAVIGATION
+const nextBayan = async () => {
+  if (currentBayanId < 114) {
+    currentBayanId += 1;
+    if (callback) callback(currentBayanId, false, 'bayan');
+  }
+};
+
+const previousBayan = async () => {
+  if (currentBayanId > 1) {
+    currentBayanId -= 1;
+    if (callback) callback(currentBayanId, false, 'bayan');
+  }
+};
+
+// --- Exporting Object ---
+export default {
+  registerCallback,
+  setSurahID,
+  setBayanID,
+  setupPlayer,
+  play,
+  pause,
+  next,
+  previous,
+  playSurah,
+  jumpToAyat,
+  nextBayan,
+  previousBayan,
+  getCurrentSurahId: () => currentSurahId,
+  getCurrentBayanId: () => currentBayanId,
+};

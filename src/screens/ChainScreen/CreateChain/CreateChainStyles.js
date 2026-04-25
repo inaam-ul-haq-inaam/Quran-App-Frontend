@@ -1,0 +1,128 @@
+import { StyleSheet } from 'react-native';
+
+export const ss = StyleSheet.create({
+  container: {
+    backgroundColor: '#F0F4F0',
+    flex: 1,
+  },
+  header: {
+    padding: 20,
+    backgroundColor: '#065F46',
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  headerText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+    marginLeft: 15,
+  },
+  section: {
+    paddingHorizontal: 20,
+    marginBottom: 15,
+  },
+  label: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  selectorBox: {
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    elevation: 2,
+  },
+  selectorText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  inputBox: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    height: 50,
+    width: '48%',
+    elevation: 2,
+    color: '#333',
+  },
+  addBtn: {
+    backgroundColor: '#065F46', // Blueish for "Add" action
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
+    elevation: 2,
+  },
+  addBtnText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  listContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  card: {
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    elevation: 2,
+    borderLeftWidth: 4,
+    borderLeftColor: '#008000',
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  cardSub: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  bottomBox: {
+    padding: 20,
+    backgroundColor: 'white',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    elevation: 10,
+  },
+  titleInput: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    height: 50,
+    marginBottom: 15,
+    color: '#333',
+    fontSize: 16,
+  },
+  saveBtn: {
+    backgroundColor: '#065F46',
+    paddingVertical: 15,
+    borderRadius: 25,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  saveBtnText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 10,
+  },
+});

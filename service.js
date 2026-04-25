@@ -4,13 +4,15 @@ module.exports = async function () {
   // Naye version me 'Event.RemotePlay' use hota hai
   TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
   TrackPlayer.addEventListener(Event.RemotePause, () => TrackPlayer.pause());
-  TrackPlayer.addEventListener(Event.RemoteStop, () => TrackPlayer.destroy());
 
-  // Agar next/previous button chahiye (Future k liye)
+  // 🛠️ ASAL FIX: destroy() ki jagah stop() laga diya
+  TrackPlayer.addEventListener(Event.RemoteStop, () => TrackPlayer.stop());
+
+  // 🚀 BONUS: Notification bar k Next/Prev buttons ko bhi zinda kar diya
   TrackPlayer.addEventListener(Event.RemoteNext, () =>
-    console.log('Next Track'),
+    TrackPlayer.skipToNext(),
   );
   TrackPlayer.addEventListener(Event.RemotePrevious, () =>
-    console.log('Prev Track'),
+    TrackPlayer.skipToPrevious(),
   );
 };

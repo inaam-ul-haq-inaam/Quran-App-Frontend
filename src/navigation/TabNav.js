@@ -13,8 +13,7 @@ import {
 import { CreateChain } from '../navigation/StackNav';
 import SettingScreen from '../screens/SettingScreen';
 import { HideNav } from '../components/HideNav';
-
-// 👇 2. Aapki Nayi Files Import ki hain
+import { navigationRef } from './RootNavigation';
 import VoiceMicButton from '../components/MicrophoneButton';
 import VM from '../components/VoiceInputWebView';
 
@@ -22,7 +21,7 @@ const TabNav = () => {
   const tab = createBottomTabNavigator();
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       {/* 👇 3. Pure Navigator ko View mein lapet diya (Container) */}
       <View style={{ flex: 1 }}>
         <tab.Navigator

@@ -3,8 +3,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import SurahListScreen from '../screens/SurahListScreen/SurahListScreen';
 import AudioPlayerScreen from '../screens/AudioPlayer/AudioPlayerScreen';
 import BayanListScreen from '../screens/BayanListScreen/BayanListScreen';
-import chain from '../screens/ChainScreen';
-import newChain from '../screens/CreateChain';
+import chain from '../screens/ChainScreen/showChain/ChainScreen';
+import newChain from '../screens/ChainScreen/CreateChain/CreateChain';
 import HomeScreen from '../screens/HomeScreen/HomeScreen';
 import VoiceToText from '../screens/VoiceToText';
 import BayanPlayer from '../screens/BayanAudioPlayer/BayanPlayer';
@@ -33,7 +33,11 @@ export const HomeStackNav = () => {
 export const QuranStackNav = () => {
   return (
     <stack.Navigator>
-      <stack.Screen name="SurahListScreen" component={SurahListScreen} />
+      <stack.Screen
+        name="SurahListScreen"
+        component={SurahListScreen}
+        options={{ headerShown: false }}
+      />
       <stack.Screen
         name="AudioPlayerScreen"
         component={AudioPlayerScreen}
@@ -63,8 +67,21 @@ export const BayanStackNav = () => {
 export const CreateChain = () => {
   return (
     <stack.Navigator>
-      <stack.Screen name="chain" component={chain} />
-      <stack.Screen name="newChain" component={newChain} />
+      <stack.Screen
+        name="chain"
+        component={chain}
+        options={{ headerShown: false }}
+      />
+      <stack.Screen
+        name="newChain"
+        component={newChain}
+        options={{ headerShown: false }}
+      />
+      <stack.Screen
+        name="AudioPlayerScreen"
+        component={AudioPlayerScreen}
+        options={{ headerShown: false }}
+      />
     </stack.Navigator>
   );
 };

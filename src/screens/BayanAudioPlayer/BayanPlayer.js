@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// BayanPlayer.js
+import React from 'react';
 import {
   View,
   Text,
@@ -7,139 +8,33 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import TrackPlayer, { State } from 'react-native-track-player';
+import { BayanController } from './BayanController'; // 👈 Hook import kiya
+
+const MOCK_DURATION = 1800;
+
+const formatTime = seconds => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+};
 
 const BayanPlayer = ({ route, navigation }) => {
   const { bayanList, initialIndex } = route.params;
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const data = bayanList[currentIndex];
 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isReady, setIsReady] = useState(false);
-  const [hasAudio, setHasAudio] = useState(true);
-
-  const [position, setPosition] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const MOCK_DURATION = 1800;
-
-  useEffect(() => {
-    return () => {
-      TrackPlayer.stop();
-    };
-  }, []);
-
-  useEffect(() => {
-    setupAndPlayBayan();
-  }, [currentIndex]);
-
-  useEffect(() => {
-    let interval;
-    if (isPlaying && hasAudio) {
-      interval = setInterval(async () => {
-        try {
-          const progress = await TrackPlayer.getProgress();
-          setPosition(progress.position || 0);
-          setDuration(progress.duration || 0);
-        } catch (e) {
-          // Ignore
-        }
-      }, 1000);
-    } else {
-      clearInterval(interval);
-    }
-    return () => clearInterval(interval);
-  }, [isPlaying, hasAudio]);
-
-  // 🛠️ YEH FUNCTION UPDATE KIYA HAI
-  const setupAndPlayBayan = async () => {
-    setIsReady(false);
-
-    try {
-      // 1. 🚀 Sab se pehle check karein ke player INITIALIZE hai ya nahi
-      try {
-        await TrackPlayer.getPlaybackState();
-        // Agar chal gaya to matlab initialized hai
-      } catch (e) {
-        // Agar error aaya to matlab initialize nahi hai, is liye isay on karein
-        await TrackPlayer.setupPlayer();
-      }
-
-      const audioLink = data.AudioUrl || data.AudioFile;
-
-      if (!audioLink || audioLink.trim() === '') {
-        setHasAudio(false);
-        setIsReady(true);
-        return;
-      }
-
-      setHasAudio(true);
-      await TrackPlayer.reset();
-
-      await TrackPlayer.add({
-        id: data.BayanID ? data.BayanID.toString() : '1',
-        url: audioLink,
-        title: data.Title || 'Unknown Title',
-        artist: data.ScholarName || data.ScholorName || 'Dr Israr Ahmed',
-      });
-
-      await TrackPlayer.play();
-      setIsPlaying(true);
-      setIsReady(true);
-    } catch (error) {
-      console.error('Player Setup Error: ', error);
-      setHasAudio(false);
-      setIsReady(true);
-    }
-  };
-
-  const togglePlayback = async () => {
-    if (!hasAudio) return;
-    try {
-      const playbackObj = await TrackPlayer.getPlaybackState();
-      if (playbackObj.state === State.Playing) {
-        await TrackPlayer.pause();
-        setIsPlaying(false);
-      } else {
-        await TrackPlayer.play();
-        setIsPlaying(true);
-      }
-    } catch (e) {
-      console.error('Playback toggle error:', e);
-    }
-  };
-
-  const skipTime = async amount => {
-    if (!hasAudio) return;
-    try {
-      const progress = await TrackPlayer.getProgress();
-      const currentPos = progress.position;
-      const currentDur = progress.duration;
-      const newPos = currentPos + amount;
-
-      await TrackPlayer.seekTo(Math.max(0, Math.min(newPos, currentDur)));
-      setPosition(Math.max(0, Math.min(newPos, currentDur)));
-    } catch (e) {
-      console.error('Skip time error:', e);
-    }
-  };
-
-  const playNext = () => {
-    if (currentIndex < bayanList.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    }
-  };
-
-  const playPrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-    }
-  };
-
-  const formatTime = seconds => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
+  // 🚀 Logic saari hook se aa rahi hai
+  const {
+    data,
+    currentIndex,
+    isPlaying,
+    isReady,
+    hasAudio,
+    position,
+    duration,
+    togglePlayback,
+    skipTime,
+    playNext,
+    playPrevious,
+  } = BayanController(bayanList, initialIndex);
 
   const displayDuration = hasAudio
     ? duration > 0
@@ -174,14 +69,14 @@ const BayanPlayer = ({ route, navigation }) => {
       </View>
 
       <View style={styles.infoContainer}>
-        <Text style={styles.title}>{data.Title || 'Bayan Title'}</Text>
+        <Text style={styles.title}>{data?.Title || 'Bayan Title'}</Text>
         <Text style={styles.ayatText}>
-          {data.SurahName
+          {data?.SurahName
             ? `${data.SurahName} (Ayat ${data.StartAyatID}-${data.EndAyatID})`
             : 'Topic Details'}
         </Text>
         <Text style={styles.speaker}>
-          {data.ScholarName || data.ScholorName || 'Dr Israr Ahmed'}
+          {data?.ScholarName || data?.ScholorName || 'Dr Israr Ahmed'}
         </Text>
 
         {!hasAudio && (
@@ -280,6 +175,7 @@ const BayanPlayer = ({ route, navigation }) => {
   );
 };
 
+// ... Aapke CSS Styles waisay hi rahengay jaisay the
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   header: {
