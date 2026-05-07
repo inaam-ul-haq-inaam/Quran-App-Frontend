@@ -4,6 +4,8 @@ export const useHomeController = navigation => {
       navigation.navigate('Quran');
     } else if (page === 'Bayan') {
       navigation.navigate('Bayan');
+    } else if (page === 'BookmarkListScreen') {
+      navigation.navigate('BookmarkListScreen');
     } else {
       navigation.navigate('Chain');
     }

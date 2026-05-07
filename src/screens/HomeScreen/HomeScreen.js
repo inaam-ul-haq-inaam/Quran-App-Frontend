@@ -63,7 +63,11 @@ const HomeScreen = ({ navigation }) => {
   const nextPrayer = getNextPrayer();
 
   const quickActions = [
-    { title: 'Bookmark Surah', icon: 'book-outline', screen: 'Quran' },
+    {
+      title: 'Bookmark Surah',
+      icon: 'book-outline',
+      screen: 'BookmarkListScreen',
+    },
     { title: 'Bookmark Bayan', icon: 'mic-outline', screen: 'Bayan' },
     { title: 'Bookmark Chain', icon: 'link-outline', screen: 'Chain' },
   ];

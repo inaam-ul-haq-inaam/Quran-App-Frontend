@@ -16,7 +16,7 @@ import { HideNav } from '../components/HideNav';
 import { navigationRef } from './RootNavigation';
 import VoiceMicButton from '../components/MicrophoneButton';
 import VM from '../components/VoiceInputWebView';
-
+import BookmarkListScreen from '../screens/Bookmarks/QuranBookmark/BookmarkListScreen';
 const TabNav = () => {
   const tab = createBottomTabNavigator();
 
@@ -79,6 +79,10 @@ const TabNav = () => {
 
           <tab.Screen name="Chain" component={CreateChain} />
           <tab.Screen name="Setting" component={SettingScreen} />
+          <tab.Screen
+            name="BookmarkListScreen"
+            component={BookmarkListScreen}
+          />
         </tab.Navigator>
 
         <VoiceMicButton />

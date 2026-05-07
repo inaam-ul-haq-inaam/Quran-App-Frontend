@@ -1,4 +1,5 @@
-// BayanPlayer.js
+// BayanPlayer.js - FIXED IMPORT
+
 import React from 'react';
 import {
   View,
@@ -8,20 +9,18 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { BayanController } from './BayanController'; // 👈 Hook import kiya
-
-const MOCK_DURATION = 1800;
+import { useBayanController } from './BayanController'; // 👈 FIXED IMPORT
 
 const formatTime = seconds => {
+  if (!seconds || isNaN(seconds)) return '00:00';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
 };
 
 const BayanPlayer = ({ route, navigation }) => {
-  const { bayanList, initialIndex } = route.params;
+  const { bayanList, initialIndex, isVoiceCommand = false } = route.params;
 
-  // 🚀 Logic saari hook se aa rahi hai
   const {
     data,
     currentIndex,
@@ -34,14 +33,11 @@ const BayanPlayer = ({ route, navigation }) => {
     skipTime,
     playNext,
     playPrevious,
-  } = BayanController(bayanList, initialIndex);
+    isVoiceMode,
+  } = useBayanController(bayanList, initialIndex, isVoiceCommand);
 
-  const displayDuration = hasAudio
-    ? duration > 0
-      ? duration
-      : 0
-    : MOCK_DURATION;
-  const displayPosition = hasAudio ? position : 0;
+  const displayDuration = duration > 0 ? duration : 0;
+  const displayPosition = position > 0 ? position : 0;
   const progressWidth =
     displayDuration > 0 ? (displayPosition / displayDuration) * 100 : 0;
 
@@ -52,13 +48,17 @@ const BayanPlayer = ({ route, navigation }) => {
           <Ionicons name="chevron-down" size={30} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Bayan</Text>
-        <View style={{ width: 30 }} />
+        {isVoiceMode && (
+          <View style={styles.voiceBadge}>
+            <Text style={styles.voiceBadgeText}>🎙️ Voice</Text>
+          </View>
+        )}
       </View>
 
       <View
         style={[
           styles.artContainer,
-          !hasAudio && { backgroundColor: '#F3F4F6', shadowOpacity: 0 },
+          !hasAudio && { backgroundColor: '#F3F4F6' },
         ]}
       >
         <Ionicons
@@ -105,13 +105,13 @@ const BayanPlayer = ({ route, navigation }) => {
       {isReady ? (
         <View style={styles.controls}>
           <TouchableOpacity
-            onPress={playPrevious}
-            disabled={currentIndex === 0}
+            onPress={() => playPrevious(false)}
+            disabled={currentIndex === 0 && !isVoiceMode}
           >
             <Ionicons
               name="play-skip-back"
               size={35}
-              color={currentIndex === 0 ? '#D1D5DB' : '#333'}
+              color={currentIndex === 0 && !isVoiceMode ? '#D1D5DB' : '#333'}
             />
           </TouchableOpacity>
 
@@ -131,7 +131,7 @@ const BayanPlayer = ({ route, navigation }) => {
             activeOpacity={hasAudio ? 0.2 : 1}
             style={[
               styles.playButton,
-              !hasAudio && { backgroundColor: '#9CA3AF', shadowOpacity: 0 },
+              !hasAudio && { backgroundColor: '#9CA3AF' },
             ]}
           >
             <Ionicons
@@ -154,13 +154,17 @@ const BayanPlayer = ({ route, navigation }) => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={playNext}
-            disabled={currentIndex === bayanList.length - 1}
+            onPress={() => playNext(false)}
+            disabled={currentIndex === bayanList.length - 1 && !isVoiceMode}
           >
             <Ionicons
               name="play-skip-forward"
               size={35}
-              color={currentIndex === bayanList.length - 1 ? '#D1D5DB' : '#333'}
+              color={
+                currentIndex === bayanList.length - 1 && !isVoiceMode
+                  ? '#D1D5DB'
+                  : '#333'
+              }
             />
           </TouchableOpacity>
         </View>
@@ -175,7 +179,6 @@ const BayanPlayer = ({ route, navigation }) => {
   );
 };
 
-// ... Aapke CSS Styles waisay hi rahengay jaisay the
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   header: {
@@ -191,6 +194,17 @@ const styles = StyleSheet.create({
     color: '#666',
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  voiceBadge: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 15,
+  },
+  voiceBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   artContainer: {
     alignItems: 'center',

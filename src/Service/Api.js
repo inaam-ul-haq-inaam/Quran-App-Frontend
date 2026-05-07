@@ -42,7 +42,8 @@ export const getBayanData = async surahId => {
   }
 };
 
-// 3. Get Chain Details (GET) - Handles ID and Name
+//  getChainDetails
+
 export const getChainDetails = async identifier => {
   try {
     if (!identifier) {
@@ -50,18 +51,30 @@ export const getChainDetails = async identifier => {
       return [];
     }
 
-    const isNumeric = /^\d+$/.test(identifier);
-    console.log(
-      `🚀 Calling Chain API - Type: ${
-        isNumeric ? 'ID' : 'Name'
-      }, Value: ${identifier}`,
-    );
+    const isNumeric = /^\d+$/.test(identifier.toString());
 
-    // encodeURIComponent zaruri hai taake spaces handle ho sakain
-    const url = `${BASE_URL}/getChainDetails/${encodeURIComponent(identifier)}`;
+    let url;
+    if (isNumeric) {
+      // If numeric, use ID endpoint
+      url = `${BASE_URL}/getChainDetails/${identifier}`;
+      console.log('🚀 Fetching chain by ID:', identifier);
+    } else {
+      // If string, use name endpoint
+      const encodedName = encodeURIComponent(identifier.trim());
+      url = `${BASE_URL}/getChainByName/${encodedName}`;
+      console.log('🚀 Fetching chain by Name:', identifier, 'URL:', url);
+    }
+
     const response = await axios.get(url);
 
-    return response.data?.data || [];
+    // Check response
+    if (response.data && response.data.data && response.data.data.length > 0) {
+      console.log('✅ Chain found, items:', response.data.data.length);
+      return response.data.data;
+    } else {
+      console.warn('⚠️ No data found for chain:', identifier);
+      return [];
+    }
   } catch (error) {
     console.error(
       '❌ Chain Details API Error:',

@@ -1,232 +1,94 @@
-// // useBayanController.js
-// import { useState, useEffect } from 'react';
-// import TrackPlayer, { State } from 'react-native-track-player';
+// useBayanController.js - FIXED VERSION
 
-// // 👈 NAYA: In dono imports ko apne folder structure k hisaab se adjust kar lijiyega
-// import PlayerService from '../../Service/PlayerService';
-// import { getBayanData } from '../../Service/Api';
-
-// export const BayanController = (initialBayanList, initialIndex) => {
-//   // 👈 NAYA: bayanList ko state bana diya taake naya bayan aane par screen update ho
-//   const [bayanList, setBayanList] = useState(initialBayanList);
-//   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-
-//   const data = bayanList[currentIndex];
-
-//   const [isPlaying, setIsPlaying] = useState(false);
-//   const [isReady, setIsReady] = useState(false);
-//   const [hasAudio, setHasAudio] = useState(true);
-
-//   const [position, setPosition] = useState(0);
-//   const [duration, setDuration] = useState(0);
-
-//   // 🚀 NAYA: Voice Command se aane walay signals sun-ne k liye Listener
-//   useEffect(() => {
-//     const onVoiceCommand = async (newId, skipFetch = false, type = 'surah') => {
-//       // Jab signal 'bayan' ka aye, toh API se naya bayan mangwao
-//       if (type === 'bayan') {
-//         console.log('🎤 BayanController received new Surah ID:', newId);
-//         setIsReady(false); // UI ko loading state mein daalo
-
-//         try {
-//           const newData = await getBayanData(newId);
-
-//           // 🛠️ ASAL FIX: API response mein se 'Bayans' ki array nikal lein
-//           let newList = newData;
-//           if (newData && newData.Bayans) {
-//             newList = newData.Bayans;
-//           }
-
-//           if (newList && newList.length > 0) {
-//             console.log(
-//               '✅ Naya Bayan load ho gaya, Total tracks:',
-//               newList.length,
-//             );
-//             setBayanList(newList); // Naya bayan set ho gaya
-//             setCurrentIndex(0); // Pehle track se start karo
-//           } else {
-//             console.log('❌ Naya Bayan nahi mila ya array khali hai');
-//             setIsReady(true);
-//           }
-//         } catch (error) {
-//           console.log('❌ API Fetch Error:', error);
-//           setIsReady(true);
-//         }
-//       }
-//     };
-
-//     // Callback ko active kiya
-//     PlayerService.registerCallback(onVoiceCommand);
-
-//     return () => {
-//       PlayerService.registerCallback(null);
-//     };
-//   }, []);
-
-//   useEffect(() => {
-//     return () => {
-//       TrackPlayer.stop();
-//     };
-//   }, []);
-
-//   // 👈 NAYA: Dependency mein bayanList add kiya taake naya data aanay par auto-play ho
-//   useEffect(() => {
-//     if (data) {
-//       setupAndPlayBayan();
-//     }
-//   }, [currentIndex, bayanList]);
-
-//   useEffect(() => {
-//     let interval;
-//     if (isPlaying && hasAudio) {
-//       interval = setInterval(async () => {
-//         try {
-//           const progress = await TrackPlayer.getProgress();
-//           setPosition(progress.position || 0);
-//           setDuration(progress.duration || 0);
-//         } catch (e) {
-//           // Ignore
-//         }
-//       }, 1000);
-//     } else {
-//       clearInterval(interval);
-//     }
-//     return () => clearInterval(interval);
-//   }, [isPlaying, hasAudio]);
-
-//   const setupAndPlayBayan = async () => {
-//     setIsReady(false);
-
-//     try {
-//       try {
-//         await TrackPlayer.getPlaybackState();
-//       } catch (e) {
-//         await TrackPlayer.setupPlayer();
-//       }
-
-//       const audioLink = data?.AudioUrl || data?.AudioFile;
-
-//       if (!audioLink || audioLink.trim() === '') {
-//         setHasAudio(false);
-//         setIsReady(true);
-//         return;
-//       }
-
-//       setHasAudio(true);
-//       await TrackPlayer.reset();
-
-//       await TrackPlayer.add({
-//         id: data.BayanID ? data.BayanID.toString() : '1',
-//         url: audioLink,
-//         title: data.Title || 'Unknown Title',
-//         artist: data.ScholarName || data.ScholorName || 'Dr Israr Ahmed',
-//       });
-
-//       await TrackPlayer.play();
-//       setIsPlaying(true);
-//       setIsReady(true);
-//     } catch (error) {
-//       console.error('Player Setup Error: ', error);
-//       setHasAudio(false);
-//       setIsReady(true);
-//     }
-//   };
-
-//   const togglePlayback = async () => {
-//     if (!hasAudio) return;
-//     try {
-//       const playbackObj = await TrackPlayer.getPlaybackState();
-//       if (playbackObj.state === State.Playing) {
-//         await TrackPlayer.pause();
-//         setIsPlaying(false);
-//       } else {
-//         await TrackPlayer.play();
-//         setIsPlaying(true);
-//       }
-//     } catch (e) {
-//       console.error('Playback toggle error:', e);
-//     }
-//   };
-
-//   const skipTime = async amount => {
-//     if (!hasAudio) return;
-//     try {
-//       const progress = await TrackPlayer.getProgress();
-//       const currentPos = progress.position;
-//       const currentDur = progress.duration;
-//       const newPos = currentPos + amount;
-
-//       await TrackPlayer.seekTo(Math.max(0, Math.min(newPos, currentDur)));
-//       setPosition(Math.max(0, Math.min(newPos, currentDur)));
-//     } catch (e) {
-//       console.error('Skip time error:', e);
-//     }
-//   };
-
-//   const playNext = () => {
-//     if (currentIndex < bayanList.length - 1) {
-//       setCurrentIndex(currentIndex + 1);
-//     } else {
-//       // 👈 NAYA: Agar Fatiha ka bayan khtam ho gaya ha to agli Surah ka mangwao
-//       PlayerService.nextBayan();
-//     }
-//   };
-
-//   const playPrevious = () => {
-//     if (currentIndex > 0) {
-//       setCurrentIndex(currentIndex - 1);
-//     } else {
-//       // 👈 NAYA: Pichli surah ka bayan mangwao
-//       PlayerService.previousBayan();
-//     }
-//   };
-
-//   return {
-//     data,
-//     currentIndex,
-//     isPlaying,
-//     isReady,
-//     hasAudio,
-//     position,
-//     duration,
-//     togglePlayback,
-//     skipTime,
-//     playNext,
-//     playPrevious,
-//   };
-// };
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import TrackPlayer, {
   State,
   usePlaybackState,
   useProgress,
   Capability,
+  Event,
+  useTrackPlayerEvents,
 } from 'react-native-track-player';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import PlayerService from '../../Service/PlayerService';
 import { getBayanData } from '../../Service/Api';
 
-export const useBayanController = (initialBayanList, initialIndex) => {
+export const useBayanController = (
+  initialBayanList,
+  initialIndex,
+  isVoiceCommand = false,
+) => {
   const [bayanList, setBayanList] = useState(initialBayanList);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isReady, setIsReady] = useState(false);
   const [hasAudio, setHasAudio] = useState(true);
+  const [isVoiceMode, setIsVoiceMode] = useState(isVoiceCommand);
+
+  const currentIndexRef = useRef(initialIndex);
+  const isVoiceModeRef = useRef(isVoiceCommand);
 
   const playbackState = usePlaybackState();
-  const { position, duration } = useProgress(); // 👈 Manual interval ki zaroorat nahi
+  const { position, duration } = useProgress();
 
   const data = bayanList[currentIndex];
-
-  // ✅ REAL-TIME PLAYBACK STATE
   const isPlaying =
     playbackState.state === State.Playing || playbackState === State.Playing;
 
-  // 🚀 Voice Command Listener
+  // ============================================================
+  // SAVE PROGRESS
+  // ============================================================
+  const saveProgress = useCallback(async (index, isVoice = false) => {
+    if (index > 0) {
+      const key = isVoice
+        ? `voice_resume_bayan_${index}`
+        : `resume_bayan_${index}`;
+      await AsyncStorage.setItem(key, index.toString());
+      console.log(`💾 Bayan progress saved: ${key}`);
+    }
+  }, []);
+
+  // ============================================================
+  // GET RESUME INDEX
+  // ============================================================
+  const getResumeIndex = useCallback(
+    async (isVoice = false) => {
+      const key = isVoice
+        ? `voice_resume_bayan_${currentIndex}`
+        : `resume_bayan_${currentIndex}`;
+      const saved = await AsyncStorage.getItem(key);
+      return saved ? parseInt(saved) : 0;
+    },
+    [currentIndex],
+  );
+
+  // ============================================================
+  // TRACK CHANGE LISTENER
+  // ============================================================
+  useTrackPlayerEvents([Event.PlaybackActiveTrackChanged], async event => {
+    if (
+      event.type === Event.PlaybackActiveTrackChanged &&
+      event.index !== null
+    ) {
+      console.log('📌 Bayan track changed to:', event.index);
+      await saveProgress(event.index, isVoiceModeRef.current);
+    }
+  });
+
+  // ============================================================
+  // VOICE COMMAND LISTENER
+  // ============================================================
   useEffect(() => {
-    const onVoiceCommand = async (newId, skipFetch = false, type = 'surah') => {
+    const onVoiceCommand = async (
+      newId,
+      skipFetch = false,
+      type = 'surah',
+      isVoice = false,
+    ) => {
       if (type === 'bayan') {
-        console.log('🎤 BayanController: New Signal for ID:', newId);
+        console.log('🎤 BayanController: Voice command for ID:', newId);
+        setIsVoiceMode(isVoice);
+        isVoiceModeRef.current = isVoice;
         setIsReady(false);
 
         try {
@@ -236,11 +98,11 @@ export const useBayanController = (initialBayanList, initialIndex) => {
           if (newList && newList.length > 0) {
             setBayanList(newList);
             setCurrentIndex(0);
-          } else {
-            setIsReady(true);
+            currentIndexRef.current = 0;
           }
         } catch (error) {
           console.log('❌ Bayan Fetch Error:', error);
+        } finally {
           setIsReady(true);
         }
       }
@@ -250,76 +112,127 @@ export const useBayanController = (initialBayanList, initialIndex) => {
     return () => PlayerService.registerCallback(null);
   }, []);
 
-  // 🔄 Setup and Play Logic
+  // ============================================================
+  // NEXT BAYAN (Voice command support)
+  // ============================================================
+  const playNext = useCallback(
+    async (isVoice = false) => {
+      console.log('⏭️ Next Bayan');
+      isVoiceModeRef.current = isVoice;
+
+      if (currentIndex < bayanList.length - 1) {
+        const newIndex = currentIndex + 1;
+        setCurrentIndex(newIndex);
+        currentIndexRef.current = newIndex;
+      } else {
+        // Try to get next bayan from service
+        PlayerService.nextBayan(isVoice);
+      }
+    },
+    [currentIndex, bayanList.length],
+  );
+
+  // ============================================================
+  // PREVIOUS BAYAN (Voice command support)
+  // ============================================================
+  const playPrevious = useCallback(
+    async (isVoice = false) => {
+      console.log('⏮️ Previous Bayan');
+      isVoiceModeRef.current = isVoice;
+
+      if (currentIndex > 0) {
+        const newIndex = currentIndex - 1;
+        setCurrentIndex(newIndex);
+        currentIndexRef.current = newIndex;
+      } else {
+        PlayerService.previousBayan(isVoice);
+      }
+    },
+    [currentIndex],
+  );
+
+  // ============================================================
+  // SETUP AND PLAY BAYAN
+  // ============================================================
   const setupAndPlayBayan = useCallback(async () => {
     if (!data) return;
     setIsReady(false);
 
     try {
-      // Setup Check
-      try {
-        await TrackPlayer.setupPlayer();
-        await TrackPlayer.updateOptions({
-          capabilities: [
-            Capability.Play,
-            Capability.Pause,
-            Capability.SkipToNext,
-            Capability.SkipToPrevious,
-            Capability.Stop,
-            Capability.SeekTo,
-          ],
-        });
-      } catch (e) {
-        /* Setup already exists */
-      }
-
-      const audioLink = data?.AudioUrl || data?.AudioFile;
-
-      if (!audioLink || audioLink.trim() === '') {
-        console.warn('⚠️ No Audio Link found for this Bayan');
-        setHasAudio(false);
-        setIsReady(true);
-        return;
-      }
-
-      setHasAudio(true);
-      await TrackPlayer.reset();
-
-      await TrackPlayer.add({
-        id: data.BayanID?.toString() || 'bayan_1',
-        url: audioLink, // 👈 IP sahi hona zaroori hai
-        title: data.Title || 'Bayan',
-        artist: data.ScholarName || data.ScholorName || 'Dr. Israr Ahmed',
+      await TrackPlayer.setupPlayer();
+      await TrackPlayer.updateOptions({
+        capabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+          Capability.Stop,
+          Capability.SeekTo,
+        ],
       });
+    } catch (e) {}
 
-      console.log('🎵 Bayan Added to Queue:', audioLink);
+    const audioLink = data?.AudioUrl || data?.AudioFile;
 
-      // Force play after a small delay
-      setTimeout(async () => {
-        await TrackPlayer.play();
-        setIsReady(true);
-      }, 800);
-    } catch (error) {
-      console.error('❌ Bayan Player Error: ', error);
+    if (!audioLink || audioLink.trim() === '') {
+      console.warn('⚠️ No Audio Link found');
       setHasAudio(false);
       setIsReady(true);
+      return;
     }
-  }, [data]);
 
-  // Handle Track Change or List Update
+    setHasAudio(true);
+    await TrackPlayer.reset();
+
+    await TrackPlayer.add({
+      id: data.BayanID?.toString() || `bayan_${currentIndex}`,
+      url: audioLink,
+      title: data.Title || 'Bayan',
+      artist: data.ScholarName || data.ScholorName || 'Dr. Israr Ahmed',
+    });
+
+    console.log('🎵 Bayan Added:', audioLink);
+
+    // Check for resume position
+    const resumeIndex = await getResumeIndex(isVoiceModeRef.current);
+
+    if (resumeIndex > 0 && !isVoiceModeRef.current) {
+      // Manual mode: Show resume prompt
+      // You can add Alert here if needed
+      await TrackPlayer.seekTo(resumeIndex);
+    }
+
+    setTimeout(async () => {
+      await TrackPlayer.play();
+      setIsReady(true);
+    }, 800);
+  }, [data, currentIndex, getResumeIndex]);
+
+  // ============================================================
+  // EFFECTS
+  // ============================================================
   useEffect(() => {
     setupAndPlayBayan();
-  }, [currentIndex, bayanList, setupAndPlayBayan]);
+  }, [currentIndex, bayanList]);
 
-  // 🕹️ Controls
+  // Save progress on unmount
+  useEffect(() => {
+    return () => {
+      if (position > 0) {
+        saveProgress(position, isVoiceModeRef.current);
+      }
+    };
+  }, [position, saveProgress]);
+
+  // ============================================================
+  // CONTROLS
+  // ============================================================
   const togglePlayback = async () => {
     if (!hasAudio) return;
     try {
       if (isPlaying) {
-        console.log('🔴 Manual Pause');
         await TrackPlayer.pause();
       } else {
-        console.log('🟢 Manual Play');
         await TrackPlayer.play();
       }
     } catch (e) {
@@ -331,22 +244,6 @@ export const useBayanController = (initialBayanList, initialIndex) => {
     if (!hasAudio) return;
     const newPos = position + amount;
     await TrackPlayer.seekTo(Math.max(0, Math.min(newPos, duration)));
-  };
-
-  const playNext = () => {
-    if (currentIndex < bayanList.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      PlayerService.nextBayan();
-    }
-  };
-
-  const playPrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-    } else {
-      PlayerService.previousBayan();
-    }
   };
 
   return {
@@ -361,5 +258,6 @@ export const useBayanController = (initialBayanList, initialIndex) => {
     skipTime,
     playNext,
     playPrevious,
+    isVoiceMode,
   };
 };
