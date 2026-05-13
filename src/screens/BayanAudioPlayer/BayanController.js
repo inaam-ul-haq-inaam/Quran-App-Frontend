@@ -1,6 +1,8 @@
-// useBayanController.js - FIXED VERSION
+// useBayanController.js - Fixed Resume & Voice Support with Force Restart
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Alert, ToastAndroid } from 'react-native';
+import { useRoute } from '@react-navigation/native'; // 👈 ADD THIS IMPORT
 import TrackPlayer, {
   State,
   usePlaybackState,
@@ -19,6 +21,12 @@ export const useBayanController = (
   initialIndex,
   isVoiceCommand = false,
 ) => {
+  // ============================================================
+  // GET ROUTE PARAMS (for forceRestart)
+  // ============================================================
+  const route = useRoute();
+  const { forceRestart = false } = route.params || {};
+
   const [bayanList, setBayanList] = useState(initialBayanList);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isReady, setIsReady] = useState(false);
@@ -27,6 +35,8 @@ export const useBayanController = (
 
   const currentIndexRef = useRef(initialIndex);
   const isVoiceModeRef = useRef(isVoiceCommand);
+  const positionRef = useRef(0);
+  const forceRestartRef = useRef(forceRestart); // 👈 ADD THIS REF
 
   const playbackState = usePlaybackState();
   const { position, duration } = useProgress();
@@ -36,44 +46,53 @@ export const useBayanController = (
     playbackState.state === State.Playing || playbackState === State.Playing;
 
   // ============================================================
-  // SAVE PROGRESS
+  // SAVE PROGRESS (time position in seconds)
   // ============================================================
-  const saveProgress = useCallback(async (index, isVoice = false) => {
-    if (index > 0) {
-      const key = isVoice
-        ? `voice_resume_bayan_${index}`
-        : `resume_bayan_${index}`;
-      await AsyncStorage.setItem(key, index.toString());
-      console.log(`💾 Bayan progress saved: ${key}`);
-    }
-  }, []);
+  const saveProgress = useCallback(
+    async (seconds, isVoice = false) => {
+      if (seconds > 0 && data) {
+        const key = isVoice
+          ? `voice_resume_bayan_${data.BayanID}`
+          : `resume_bayan_${data.BayanID}`;
+        await AsyncStorage.setItem(key, seconds.toString());
+        console.log(`💾 Bayan progress saved: ${key} = ${seconds.toFixed(1)}s`);
+      }
+    },
+    [data],
+  );
 
   // ============================================================
-  // GET RESUME INDEX
+  // GET RESUME POSITION (seconds)
   // ============================================================
-  const getResumeIndex = useCallback(
-    async (isVoice = false) => {
-      const key = isVoice
-        ? `voice_resume_bayan_${currentIndex}`
-        : `resume_bayan_${currentIndex}`;
-      const saved = await AsyncStorage.getItem(key);
-      return saved ? parseInt(saved) : 0;
-    },
-    [currentIndex],
-  );
+  const getResumePosition = useCallback(async () => {
+    if (!data) return 0;
+    const key = isVoiceModeRef.current
+      ? `voice_resume_bayan_${data.BayanID}`
+      : `resume_bayan_${data.BayanID}`;
+    const saved = await AsyncStorage.getItem(key);
+    const pos = saved ? parseFloat(saved) : 0;
+    console.log(`📖 Bayan resume position: ${pos}s`);
+    return pos;
+  }, [data]);
 
   // ============================================================
   // TRACK CHANGE LISTENER
   // ============================================================
   useTrackPlayerEvents([Event.PlaybackActiveTrackChanged], async event => {
-    if (
-      event.type === Event.PlaybackActiveTrackChanged &&
-      event.index !== null
-    ) {
-      console.log('📌 Bayan track changed to:', event.index);
-      await saveProgress(event.index, isVoiceModeRef.current);
-    }
+    // For bayan we don't have multiple tracks, but keep for consistency
   });
+
+  // ============================================================
+  // PERIODIC PROGRESS SAVE (every 5 seconds)
+  // ============================================================
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (isPlaying && position > 0) {
+        await saveProgress(position, isVoiceModeRef.current);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isPlaying, position, saveProgress]);
 
   // ============================================================
   // VOICE COMMAND LISTENER
@@ -84,6 +103,8 @@ export const useBayanController = (
       skipFetch = false,
       type = 'surah',
       isVoice = false,
+      rangeFrom,
+      rangeTo,
     ) => {
       if (type === 'bayan') {
         console.log('🎤 BayanController: Voice command for ID:', newId);
@@ -94,14 +115,27 @@ export const useBayanController = (
         try {
           const newData = await getBayanData(newId);
           let newList = newData?.Bayans || newData;
-
           if (newList && newList.length > 0) {
+            let idx = 0;
+            if (
+              rangeFrom !== undefined &&
+              rangeFrom !== null &&
+              typeof rangeFrom === 'number'
+            ) {
+              idx = Math.min(rangeFrom, newList.length - 1);
+            }
             setBayanList(newList);
-            setCurrentIndex(0);
-            currentIndexRef.current = 0;
+            setCurrentIndex(idx);
+            currentIndexRef.current = idx;
+          } else {
+            ToastAndroid.show(
+              'No bayan found for this surah',
+              ToastAndroid.SHORT,
+            );
           }
         } catch (error) {
           console.log('❌ Bayan Fetch Error:', error);
+          ToastAndroid.show('Error loading bayan', ToastAndroid.SHORT);
         } finally {
           setIsReady(true);
         }
@@ -113,19 +147,17 @@ export const useBayanController = (
   }, []);
 
   // ============================================================
-  // NEXT BAYAN (Voice command support)
+  // NEXT BAYAN
   // ============================================================
   const playNext = useCallback(
     async (isVoice = false) => {
       console.log('⏭️ Next Bayan');
       isVoiceModeRef.current = isVoice;
-
       if (currentIndex < bayanList.length - 1) {
         const newIndex = currentIndex + 1;
         setCurrentIndex(newIndex);
         currentIndexRef.current = newIndex;
       } else {
-        // Try to get next bayan from service
         PlayerService.nextBayan(isVoice);
       }
     },
@@ -133,13 +165,12 @@ export const useBayanController = (
   );
 
   // ============================================================
-  // PREVIOUS BAYAN (Voice command support)
+  // PREVIOUS BAYAN
   // ============================================================
   const playPrevious = useCallback(
     async (isVoice = false) => {
       console.log('⏮️ Previous Bayan');
       isVoiceModeRef.current = isVoice;
-
       if (currentIndex > 0) {
         const newIndex = currentIndex - 1;
         setCurrentIndex(newIndex);
@@ -152,7 +183,7 @@ export const useBayanController = (
   );
 
   // ============================================================
-  // SETUP AND PLAY BAYAN
+  // SETUP AND PLAY BAYAN (WITH FORCE RESTART SUPPORT)
   // ============================================================
   const setupAndPlayBayan = useCallback(async () => {
     if (!data) return;
@@ -170,10 +201,22 @@ export const useBayanController = (
           Capability.SeekTo,
         ],
       });
-    } catch (e) {}
+    } catch (e) {
+      /* already setup */
+    }
+
+    // ============================================================
+    // 🔥 FORCE RESTART - Clear previous audio
+    // ============================================================
+    if (forceRestartRef.current) {
+      await TrackPlayer.stop();
+      await TrackPlayer.reset();
+      console.log('🔄 Force restart - cleared previous bayan');
+      // Reset the flag so next time it doesn't force restart unnecessarily
+      forceRestartRef.current = false;
+    }
 
     const audioLink = data?.AudioUrl || data?.AudioFile;
-
     if (!audioLink || audioLink.trim() === '') {
       console.warn('⚠️ No Audio Link found');
       setHasAudio(false);
@@ -183,7 +226,6 @@ export const useBayanController = (
 
     setHasAudio(true);
     await TrackPlayer.reset();
-
     await TrackPlayer.add({
       id: data.BayanID?.toString() || `bayan_${currentIndex}`,
       url: audioLink,
@@ -193,20 +235,59 @@ export const useBayanController = (
 
     console.log('🎵 Bayan Added:', audioLink);
 
-    // Check for resume position
-    const resumeIndex = await getResumeIndex(isVoiceModeRef.current);
+    // Resume from saved position if NOT voice command (manual mode)
+    const resumePos = await getResumePosition();
 
-    if (resumeIndex > 0 && !isVoiceModeRef.current) {
-      // Manual mode: Show resume prompt
-      // You can add Alert here if needed
-      await TrackPlayer.seekTo(resumeIndex);
-    }
-
-    setTimeout(async () => {
+    // 🔥 If force restart was true, start from beginning (don't resume)
+    if (forceRestart) {
+      console.log('🎵 Force restart - playing from beginning');
+      await TrackPlayer.seekTo(0);
       await TrackPlayer.play();
       setIsReady(true);
-    }, 800);
-  }, [data, currentIndex, getResumeIndex]);
+      return;
+    }
+
+    if (resumePos > 5 && !isVoiceModeRef.current) {
+      // Show resume prompt for manual mode
+      Alert.alert(
+        'Resume Bayan?',
+        `Continue from ${Math.floor(resumePos / 60)}:${Math.floor(
+          resumePos % 60,
+        )
+          .toString()
+          .padStart(2, '0')}?`,
+        [
+          {
+            text: 'Start Over',
+            onPress: async () => {
+              await TrackPlayer.seekTo(0);
+              await TrackPlayer.play();
+            },
+          },
+          {
+            text: 'Resume',
+            onPress: async () => {
+              await TrackPlayer.seekTo(resumePos);
+              await TrackPlayer.play();
+            },
+          },
+        ],
+        { cancelable: false },
+      );
+      setIsReady(true);
+    } else if (isVoiceModeRef.current && resumePos > 0) {
+      // Voice mode auto-resume
+      console.log(`🎙️ Voice mode - auto-resuming from ${resumePos}s`);
+      await TrackPlayer.seekTo(resumePos);
+      await TrackPlayer.play();
+      setIsReady(true);
+    } else {
+      setTimeout(async () => {
+        await TrackPlayer.play();
+        setIsReady(true);
+      }, 500);
+    }
+  }, [data, currentIndex, getResumePosition, forceRestart]);
 
   // ============================================================
   // EFFECTS
@@ -215,7 +296,7 @@ export const useBayanController = (
     setupAndPlayBayan();
   }, [currentIndex, bayanList]);
 
-  // Save progress on unmount
+  // Save final progress on unmount
   useEffect(() => {
     return () => {
       if (position > 0) {
@@ -230,20 +311,17 @@ export const useBayanController = (
   const togglePlayback = async () => {
     if (!hasAudio) return;
     try {
-      if (isPlaying) {
-        await TrackPlayer.pause();
-      } else {
-        await TrackPlayer.play();
-      }
+      if (isPlaying) await TrackPlayer.pause();
+      else await TrackPlayer.play();
     } catch (e) {
-      console.error('Toggle Error:', e);
+      console.error(e);
     }
   };
 
   const skipTime = async amount => {
     if (!hasAudio) return;
-    const newPos = position + amount;
-    await TrackPlayer.seekTo(Math.max(0, Math.min(newPos, duration)));
+    const newPos = Math.max(0, Math.min(position + amount, duration));
+    await TrackPlayer.seekTo(newPos);
   };
 
   return {

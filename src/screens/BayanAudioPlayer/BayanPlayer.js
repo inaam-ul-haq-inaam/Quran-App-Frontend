@@ -1,4 +1,4 @@
-// BayanPlayer.js - FIXED IMPORT
+// BayanPlayer.js - Fixed import path
 
 import React from 'react';
 import {
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useBayanController } from './BayanController'; // 👈 FIXED IMPORT
+import { useBayanController } from './BayanController'; // ✅ Correct import
 
 const formatTime = seconds => {
   if (!seconds || isNaN(seconds)) return '00:00';
@@ -19,7 +19,11 @@ const formatTime = seconds => {
 };
 
 const BayanPlayer = ({ route, navigation }) => {
-  const { bayanList, initialIndex, isVoiceCommand = false } = route.params;
+  const {
+    bayanList,
+    initialIndex,
+    isVoiceCommand = false,
+  } = route.params || {};
 
   const {
     data,
@@ -36,10 +40,7 @@ const BayanPlayer = ({ route, navigation }) => {
     isVoiceMode,
   } = useBayanController(bayanList, initialIndex, isVoiceCommand);
 
-  const displayDuration = duration > 0 ? duration : 0;
-  const displayPosition = position > 0 ? position : 0;
-  const progressWidth =
-    displayDuration > 0 ? (displayPosition / displayDuration) * 100 : 0;
+  const progressWidth = duration > 0 ? (position / duration) * 100 : 0;
 
   return (
     <View style={styles.container}>
@@ -78,7 +79,6 @@ const BayanPlayer = ({ route, navigation }) => {
         <Text style={styles.speaker}>
           {data?.ScholarName || data?.ScholorName || 'Dr Israr Ahmed'}
         </Text>
-
         {!hasAudio && (
           <Text style={styles.noAudioText}>Audio file not available</Text>
         )}
@@ -97,8 +97,8 @@ const BayanPlayer = ({ route, navigation }) => {
           />
         </View>
         <View style={styles.timeContainer}>
-          <Text style={styles.timeText}>{formatTime(displayPosition)}</Text>
-          <Text style={styles.timeText}>{formatTime(displayDuration)}</Text>
+          <Text style={styles.timeText}>{formatTime(position)}</Text>
+          <Text style={styles.timeText}>{formatTime(duration)}</Text>
         </View>
       </View>
 
@@ -114,7 +114,6 @@ const BayanPlayer = ({ route, navigation }) => {
               color={currentIndex === 0 && !isVoiceMode ? '#D1D5DB' : '#333'}
             />
           </TouchableOpacity>
-
           <TouchableOpacity
             onPress={() => skipTime(-15)}
             activeOpacity={hasAudio ? 0.2 : 1}
@@ -125,7 +124,6 @@ const BayanPlayer = ({ route, navigation }) => {
               color={hasAudio ? '#333' : '#9CA3AF'}
             />
           </TouchableOpacity>
-
           <TouchableOpacity
             onPress={togglePlayback}
             activeOpacity={hasAudio ? 0.2 : 1}
@@ -141,7 +139,6 @@ const BayanPlayer = ({ route, navigation }) => {
               style={{ marginLeft: isPlaying ? 0 : 5 }}
             />
           </TouchableOpacity>
-
           <TouchableOpacity
             onPress={() => skipTime(15)}
             activeOpacity={hasAudio ? 0.2 : 1}
@@ -152,16 +149,17 @@ const BayanPlayer = ({ route, navigation }) => {
               color={hasAudio ? '#333' : '#9CA3AF'}
             />
           </TouchableOpacity>
-
           <TouchableOpacity
             onPress={() => playNext(false)}
-            disabled={currentIndex === bayanList.length - 1 && !isVoiceMode}
+            disabled={
+              currentIndex === (bayanList?.length || 1) - 1 && !isVoiceMode
+            }
           >
             <Ionicons
               name="play-skip-forward"
               size={35}
               color={
-                currentIndex === bayanList.length - 1 && !isVoiceMode
+                currentIndex === (bayanList?.length || 1) - 1 && !isVoiceMode
                   ? '#D1D5DB'
                   : '#333'
               }
@@ -201,11 +199,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 15,
   },
-  voiceBadgeText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
+  voiceBadgeText: { color: 'white', fontSize: 10, fontWeight: 'bold' },
   artContainer: {
     alignItems: 'center',
     justifyContent: 'center',

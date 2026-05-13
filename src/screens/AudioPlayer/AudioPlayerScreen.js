@@ -1,4 +1,4 @@
-// AudioPlayerScreen.js - Updated (add voice mode display)
+// AudioPlayerScreen.js - COMPLETE FIXED VERSION
 
 import React from 'react';
 import {
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   StatusBar,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { useAudioPlayer } from '../AudioPlayer/useAudioPlayer';
 import PlayerControls from '../AudioPlayer/PlayerControls';
@@ -30,10 +31,19 @@ export default function AudioPlayerScreen({ route }) {
     next,
     previous,
     seekToTime,
-    isVoiceMode, // 🆕 Voice mode flag
+    isVoiceMode,
   } = useAudioPlayer(playType, playId, playTitle);
 
   const currentAyat = ayats[currentIndex];
+
+  // Debug log
+  if (currentAyat) {
+    console.log('📖 Ayat Data:', {
+      number: currentAyat.AyatNumber || currentAyat.ayatNumber,
+      arabic: currentAyat.ArabicText || currentAyat.arabicText,
+      urdu: currentAyat.urduText || currentAyat.UrduTranslation,
+    });
+  }
 
   if (loading) {
     return (
@@ -55,7 +65,6 @@ export default function AudioPlayerScreen({ route }) {
           <Text style={styles.surahTitle}>{surahName}</Text>
           <Text style={styles.reciterName}>Mishary Rashid Al-Afasy</Text>
 
-          {/* 🆕 Show voice mode badge */}
           {isVoiceMode && (
             <View style={styles.voiceBadge}>
               <Text style={styles.voiceBadgeText}>🎙️ Voice Command Mode</Text>
@@ -98,22 +107,28 @@ export default function AudioPlayerScreen({ route }) {
               </Text>
             </View>
 
+            {/* Arabic Text - RTL Support */}
             <Text style={styles.arabicText}>
-              {currentAyat.ArabicText || currentAyat.text || '...'}
+              {currentAyat.ArabicText ||
+                currentAyat.arabicText ||
+                currentAyat.arabic ||
+                '...'}
             </Text>
 
             <View style={styles.ayatDivider} />
 
-            <Text style={styles.translationText}>
+            {/* Urdu Text - RTL Support */}
+            <Text style={styles.urduText}>
               {currentAyat.urduText ||
                 currentAyat.UrduTranslation ||
+                currentAyat.translationUrdu ||
                 currentAyat.translation ||
                 'Translation not available'}
             </Text>
           </View>
         ) : (
           <View style={styles.errorBox}>
-            <Text style={styles.translationText}>Ayat Load Nahi Ho Saki</Text>
+            <Text style={styles.urduText}>Ayat Load Nahi Ho Saki</Text>
           </View>
         )}
       </ScrollView>
@@ -163,7 +178,6 @@ const styles = StyleSheet.create({
     marginTop: 5,
     fontWeight: '500',
   },
-  // 🆕 Voice badge style
   voiceBadge: {
     backgroundColor: '#4CAF50',
     paddingHorizontal: 12,
@@ -207,20 +221,23 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   arabicText: {
-    fontSize: 30,
-    lineHeight: 52,
-    color: '#222',
-    textAlign: 'center',
-    fontFamily: 'serif',
-    marginBottom: 10,
+    fontSize: 32,
+    lineHeight: 58,
+    color: '#1F2937',
+    textAlign: 'right',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    marginBottom: 15,
+    writingDirection: 'rtl',
   },
   ayatDivider: { height: 1, backgroundColor: '#F0F0F0', marginVertical: 20 },
-  translationText: {
-    fontSize: 17,
-    lineHeight: 30,
-    color: '#555',
-    textAlign: 'center',
+  urduText: {
+    fontSize: 18,
+    lineHeight: 32,
+    color: '#4B5563',
+    textAlign: 'right',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
     fontStyle: 'italic',
+    writingDirection: 'rtl',
   },
   errorBox: { padding: 20, alignItems: 'center' },
 });

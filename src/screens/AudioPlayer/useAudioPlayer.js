@@ -1,7 +1,13 @@
-// useAudioPlayer.js - UPDATED WITH FORCE RESTART SUPPORT
+// ============================================================
+// useAudioPlayer.js - COMPLETE WORKING CODE (FIXED)
+// Handles: Quran Audio Playback, Chain Playback, Voice Commands,
+//          Progress Save/Resume, Force Restart, Range Playback,
+//          Next/Previous Surah Navigation
+// ============================================================
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert, Platform, ToastAndroid } from 'react-native';
+import { useRoute } from '@react-navigation/native'; // 👈 IMPORT ADD KARO
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import TrackPlayer, {
   Capability,
@@ -16,79 +22,135 @@ import TrackPlayer, {
 import { getSurahAyats, getChainDetails } from '../../Service/Api';
 import PlayerService from '../../Service/PlayerService';
 
+// ============================================================
+// MAIN HOOK
+// ============================================================
 export const useAudioPlayer = (playType, playId, playTitle) => {
+  // 👇 ROUTE PARAMS READ KARO
+  const route = useRoute();
+  const params = route.params || {};
+
+  // ============================================================
+  // STATE VARIABLES
+  // ============================================================
+
+  // Audio data states
   const [ayats, setAyats] = useState([]);
   const [surahName, setSurahName] = useState(playTitle);
+  const [surahArabicName, setSurahArabicName] = useState('');
+  const [reciterName, setReciterName] = useState('');
+  const [totalAyats, setTotalAyats] = useState(0);
+  const [rangeFrom, setRangeFrom] = useState(1);
+  const [rangeTo, setRangeTo] = useState(0);
+
+  // Player states - 👇 PARAMS SE VALUE LO
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [isVoiceMode, setIsVoiceMode] = useState(
+    params.isVoiceCommand || false,
+  );
+  const [forceRestart, setForceRestart] = useState(
+    params.forceRestart || false,
+  );
+  const [isResumeMode, setIsResumeMode] = useState(params.isResume || false);
+  const [resumeFromAyat, setResumeFromAyat] = useState(
+    params.resumeFromAyat || null,
+  );
 
+  // Refs for tracking without re-renders
   const currentIndexRef = useRef(0);
-  const isVoiceModeRef = useRef(false);
+  const isVoiceModeRef = useRef(isVoiceMode);
   const currentIdRef = useRef(playId);
 
+  // TrackPlayer hooks
   const playbackState = usePlaybackState();
   const progress = useProgress();
 
+  // Derived states
   const isPlaying =
-    playbackState.state === State.Playing || playbackState === State.Playing;
-
+    playbackState?.state === State.Playing || playbackState === State.Playing;
   const isBuffering =
-    playbackState.state === State.Buffering ||
+    playbackState?.state === State.Buffering ||
     playbackState === State.Buffering;
 
-  // Get params from route (for forceRestart and isResume)
-  // Note: These need to be passed via route params
-  const [forceRestart, setForceRestart] = useState(false);
-  const [isResumeMode, setIsResumeMode] = useState(false);
+  // Update ref when isVoiceMode changes
+  useEffect(() => {
+    isVoiceModeRef.current = isVoiceMode;
+  }, [isVoiceMode]);
 
-  // Save progress with mode awareness
+  // ============================================================
+  // HELPER: Save Progress to AsyncStorage
+  // ============================================================
   const saveProgress = useCallback(
     async (index, isVoice = false) => {
-      if (index > 0) {
+      if (!index || index <= 0) return;
+
+      try {
         const key = isVoice
           ? `voice_resume_${playType}_${playId}`
           : `resume_${playType}_${playId}`;
         await AsyncStorage.setItem(key, index.toString());
         console.log(`💾 Saved: ${key} = ${index}`);
+      } catch (error) {
+        console.error('Save progress error:', error);
       }
     },
     [playType, playId],
   );
 
-  // Get resume index based on mode (without prompt)
+  // ============================================================
+  // HELPER: Get Resume Index from AsyncStorage
+  // ============================================================
   const getResumeIndexSilent = useCallback(
     async isVoice => {
-      const key = isVoice
-        ? `voice_resume_${playType}_${playId}`
-        : `resume_${playType}_${playId}`;
-      const savedValue = await AsyncStorage.getItem(key);
-      const index = savedValue ? parseInt(savedValue) : 0;
-      console.log(`📖 Resume check (${isVoice ? 'voice' : 'manual'}):`, index);
-      return index;
+      try {
+        const key = isVoice
+          ? `voice_resume_${playType}_${playId}`
+          : `resume_${playType}_${playId}`;
+        const savedValue = await AsyncStorage.getItem(key);
+        const index = savedValue ? parseInt(savedValue) : 0;
+        console.log(
+          `📖 Resume check (${isVoice ? 'voice' : 'manual'}):`,
+          index,
+        );
+        return index;
+      } catch (error) {
+        console.error('Get resume index error:', error);
+        return 0;
+      }
     },
     [playType, playId],
   );
 
-  // Check if should show resume prompt
+  // ============================================================
+  // HELPER: Check if should show resume prompt
+  // ============================================================
   const shouldShowResumePrompt = useCallback(async () => {
-    // Don't show prompt if forceRestart is true
     if (forceRestart) return false;
-    // Only show prompt for manual mode
     if (isVoiceModeRef.current) return false;
 
-    const key = `resume_${playType}_${playId}`;
-    const savedValue = await AsyncStorage.getItem(key);
-    return savedValue !== null && parseInt(savedValue) > 0;
+    try {
+      const key = `resume_${playType}_${playId}`;
+      const savedValue = await AsyncStorage.getItem(key);
+      return savedValue !== null && parseInt(savedValue) > 0;
+    } catch (error) {
+      console.error('Check resume prompt error:', error);
+      return false;
+    }
   }, [playType, playId, forceRestart]);
 
-  // --- Player Controls ---
+  // ============================================================
+  // PLAYER CONTROLS (same as before)
+  // ============================================================
+
   const play = async () => {
     try {
       await TrackPlayer.play();
       console.log('▶️ Play command sent');
+      ToastAndroid.show('Playing', ToastAndroid.SHORT);
     } catch (e) {
       console.error('Play Error:', e);
+      ToastAndroid.show('Play failed', ToastAndroid.SHORT);
     }
   };
 
@@ -96,8 +158,10 @@ export const useAudioPlayer = (playType, playId, playTitle) => {
     try {
       await TrackPlayer.pause();
       console.log('⏸️ Pause command sent');
+      ToastAndroid.show('Paused', ToastAndroid.SHORT);
     } catch (e) {
       console.error('Pause Error:', e);
+      ToastAndroid.show('Pause failed', ToastAndroid.SHORT);
     }
   };
 
@@ -106,50 +170,160 @@ export const useAudioPlayer = (playType, playId, playTitle) => {
       const queue = await TrackPlayer.getQueue();
       const currentTrack = await TrackPlayer.getActiveTrackIndex();
 
+      if (!queue || queue.length === 0) {
+        console.log('⚠️ No queue available');
+        ToastAndroid.show('Nothing to play', ToastAndroid.SHORT);
+        return;
+      }
+
       if (currentTrack !== null && currentTrack < queue.length - 1) {
         await TrackPlayer.skipToNext();
-      } else if (playType === 'surah' && parseInt(playId) < 114) {
+        console.log('⏭️ Next ayat');
+        ToastAndroid.show('Next Ayat', ToastAndroid.SHORT);
+        return;
+      }
+
+      if (playType === 'surah' && parseInt(playId) < 114) {
         const nextId = parseInt(playId) + 1;
-        const nextAyats = await getSurahAyats(nextId);
-        if (nextAyats?.length > 0) {
+        const nextData = await getSurahAyats(nextId);
+
+        if (nextData?.ayats && nextData.ayats.length > 0) {
+          console.log(`⏭️ Moving to next surah: ${nextId}`);
           await PlayerService.playSurah(
             nextId,
-            nextAyats,
+            nextData.ayats,
             isVoiceModeRef.current,
           );
+          ToastAndroid.show(`Surah ${nextData.surah_name}`, ToastAndroid.SHORT);
+        } else {
+          ToastAndroid.show('No more surahs', ToastAndroid.SHORT);
         }
-      } else {
-        await TrackPlayer.skip(0);
+        return;
       }
+
+      await TrackPlayer.skip(0);
+      console.log('🔄 Looping to first ayat');
+      ToastAndroid.show('Start of Surah', ToastAndroid.SHORT);
     } catch (e) {
-      console.log('Next Error:', e);
+      console.error('Next Error:', e);
+      ToastAndroid.show('Next failed', ToastAndroid.SHORT);
     }
   };
 
   const previous = async () => {
     try {
       const currentTrack = await TrackPlayer.getActiveTrackIndex();
-      const progress = await TrackPlayer.getPosition();
+      const position = await TrackPlayer.getPosition();
 
-      if (progress < 3 && currentTrack > 0) {
-        await TrackPlayer.skipToPrevious();
-      } else {
-        await TrackPlayer.seekTo(0);
+      if (currentTrack === null) {
+        console.log('⚠️ No track playing');
+        return;
       }
+
+      if (position < 3 && currentTrack > 0) {
+        await TrackPlayer.skipToPrevious();
+        console.log('⏮️ Previous ayat');
+        ToastAndroid.show('Previous Ayat', ToastAndroid.SHORT);
+        return;
+      }
+
+      if (
+        currentTrack === 0 &&
+        position < 3 &&
+        playType === 'surah' &&
+        parseInt(playId) > 1
+      ) {
+        const prevId = parseInt(playId) - 1;
+        const prevData = await getSurahAyats(prevId);
+
+        if (prevData?.ayats && prevData.ayats.length > 0) {
+          console.log(`⏮️ Moving to previous surah: ${prevId}`);
+          await PlayerService.playSurah(
+            prevId,
+            prevData.ayats,
+            isVoiceModeRef.current,
+          );
+          ToastAndroid.show(`Surah ${prevData.surah_name}`, ToastAndroid.SHORT);
+        }
+        return;
+      }
+
+      await TrackPlayer.seekTo(0);
+      console.log('⏮️ Seek to start of current ayat');
+      ToastAndroid.show('Start of Ayat', ToastAndroid.SHORT);
     } catch (e) {
-      console.log('Previous Error:', e);
+      console.error('Previous Error:', e);
+      ToastAndroid.show('Previous failed', ToastAndroid.SHORT);
+    }
+  };
+
+  const nextSurah = async () => {
+    try {
+      const currentId = parseInt(playId);
+      if (currentId < 114) {
+        const nextId = currentId + 1;
+        const nextData = await getSurahAyats(nextId);
+
+        if (nextData?.ayats && nextData.ayats.length > 0) {
+          console.log(`⏭️ Next surah: ${nextId}`);
+          await PlayerService.playSurah(
+            nextId,
+            nextData.ayats,
+            isVoiceModeRef.current,
+          );
+          ToastAndroid.show(`Surah ${nextData.surah_name}`, ToastAndroid.SHORT);
+          return true;
+        }
+      }
+      ToastAndroid.show('This is the last surah', ToastAndroid.SHORT);
+      return false;
+    } catch (e) {
+      console.error('Next Surah Error:', e);
+      ToastAndroid.show('Failed to load next surah', ToastAndroid.SHORT);
+      return false;
+    }
+  };
+
+  const previousSurah = async () => {
+    try {
+      const currentId = parseInt(playId);
+      if (currentId > 1) {
+        const prevId = currentId - 1;
+        const prevData = await getSurahAyats(prevId);
+
+        if (prevData?.ayats && prevData.ayats.length > 0) {
+          console.log(`⏮️ Previous surah: ${prevId}`);
+          await PlayerService.playSurah(
+            prevId,
+            prevData.ayats,
+            isVoiceModeRef.current,
+          );
+          ToastAndroid.show(`Surah ${prevData.surah_name}`, ToastAndroid.SHORT);
+          return true;
+        }
+      }
+      ToastAndroid.show('This is the first surah', ToastAndroid.SHORT);
+      return false;
+    } catch (e) {
+      console.error('Previous Surah Error:', e);
+      ToastAndroid.show('Failed to load previous surah', ToastAndroid.SHORT);
+      return false;
     }
   };
 
   const seekToTime = async seconds => {
     try {
+      if (isNaN(seconds) || seconds < 0) return;
       await TrackPlayer.seekTo(seconds);
+      console.log(`⏩ Seeked to: ${seconds}s`);
     } catch (e) {
       console.log('Seek Error:', e);
     }
   };
 
-  // Track change listener with progress save
+  // ============================================================
+  // TRACK CHANGE LISTENER
+  // ============================================================
   useTrackPlayerEvents([Event.PlaybackActiveTrackChanged], async event => {
     if (
       event.type === Event.PlaybackActiveTrackChanged &&
@@ -160,14 +334,15 @@ export const useAudioPlayer = (playType, playId, playTitle) => {
       currentIndexRef.current = event.index;
       await saveProgress(event.index, isVoiceModeRef.current);
 
-      // Save last played surah for resume
       if (playType === 'surah') {
         await AsyncStorage.setItem('last_played_surah', playId.toString());
       }
     }
   });
 
-  // Voice command callback handler
+  // ============================================================
+  // VOICE COMMAND CALLBACK HANDLER
+  // ============================================================
   useEffect(() => {
     const onVoiceCommand = async (
       newId,
@@ -183,18 +358,15 @@ export const useAudioPlayer = (playType, playId, playTitle) => {
         rangeFrom,
         rangeTo,
       });
-      isVoiceModeRef.current = isVoice;
-      setIsVoiceMode(isVoice);
-      currentIdRef.current = newId;
 
       if (rangeFrom || rangeTo) {
         const ayatsData = await getSurahAyats(newId);
-        if (ayatsData?.length > 0) {
-          let filteredAyats = [...ayatsData];
+        if (ayatsData?.ayats && ayatsData.ayats.length > 0) {
+          let filteredAyats = [...ayatsData.ayats];
           if (rangeFrom && rangeTo) {
-            filteredAyats = ayatsData.slice(rangeFrom - 1, rangeTo);
+            filteredAyats = ayatsData.ayats.slice(rangeFrom - 1, rangeTo);
           } else if (rangeFrom) {
-            filteredAyats = [ayatsData[rangeFrom - 1]];
+            filteredAyats = [ayatsData.ayats[rangeFrom - 1]];
           }
           await PlayerService.playSurah(
             newId,
@@ -211,7 +383,9 @@ export const useAudioPlayer = (playType, playId, playTitle) => {
     return () => PlayerService.registerCallback(null);
   }, []);
 
-  // Main data loader with conditional resume prompt
+  // ============================================================
+  // MAIN DATA LOADER
+  // ============================================================
   useEffect(() => {
     let isMounted = true;
     let hasShownPrompt = false;
@@ -220,7 +394,7 @@ export const useAudioPlayer = (playType, playId, playTitle) => {
       try {
         setLoading(true);
 
-        // Setup TrackPlayer if needed
+        // Setup TrackPlayer
         try {
           await TrackPlayer.setupPlayer();
           await TrackPlayer.updateOptions({
@@ -247,7 +421,7 @@ export const useAudioPlayer = (playType, playId, playTitle) => {
           console.log('Player already initialized');
         }
 
-        // 🆕 If forceRestart is true, clear saved progress
+        // Clear saved progress if forceRestart
         if (forceRestart) {
           const key = `resume_${playType}_${playId}`;
           const voiceKey = `voice_resume_${playType}_${playId}`;
@@ -257,18 +431,34 @@ export const useAudioPlayer = (playType, playId, playTitle) => {
         }
 
         // Fetch data
-        let data = [];
+        let data = null;
         let name = playTitle;
 
         if (playType === 'chain') {
           data = await getChainDetails(playId);
-        } else {
-          data = await getSurahAyats(playId);
           if (data && data.length > 0) {
-            name =
-              data[0]?.NameEnglish?.split('(')[0]?.trim() || `Surah ${playId}`;
+            setAyats(data);
           }
-          PlayerService.setSurahID(playId);
+        } else {
+          const response = await getSurahAyats(playId);
+
+          if (response && response.ayats && response.ayats.length > 0) {
+            data = response.ayats;
+            name = response.surah_name
+              ? response.surah_name.split('(')[0].trim()
+              : playTitle;
+
+            setSurahName(response.surah_name || playTitle);
+            setSurahArabicName(response.surah_name_arabic || '');
+            setReciterName(response.reciter_name || 'Mishary Al-Afasy');
+            setTotalAyats(response.surah_total_ayats || 0);
+            setRangeFrom(response.range_from || 1);
+            setRangeTo(
+              response.range_to || response.surah_total_ayats || data.length,
+            );
+
+            PlayerService.setSurahID(playId);
+          }
         }
 
         if (!isMounted) return;
@@ -283,20 +473,24 @@ export const useAudioPlayer = (playType, playId, playTitle) => {
 
         // Prepare queue
         const tracks = data.map((ayat, idx) => ({
-          id: (ayat.AyatNumber || ayat.ayatNumber || idx + 1).toString(),
+          id: (ayat.number || ayat.ayatNumber || idx + 1).toString(),
           url: ayat.audio || ayat.audioUrl || ayat.url,
-          title: `Ayat ${ayat.AyatNumber || ayat.ayatNumber || idx + 1}`,
+          title: `Ayat ${ayat.number || ayat.ayatNumber || idx + 1}`,
           artist: name,
         }));
 
         await TrackPlayer.reset();
         await TrackPlayer.add(tracks);
 
-        // Resume logic with mode separation
+        // Handle resume logic
         const shouldPrompt = await shouldShowResumePrompt();
-        const resumeIndex = await getResumeIndexSilent(isVoiceModeRef.current);
+        let resumeIndex = await getResumeIndexSilent(isVoiceModeRef.current);
 
-        // 🆕 Handle isResumeMode (from voice resume command)
+        if (resumeFromAyat && resumeFromAyat > 0) {
+          resumeIndex = resumeFromAyat - 1;
+          console.log(`📖 Resuming from specific ayat: ${resumeFromAyat}`);
+        }
+
         if (isResumeMode && resumeIndex > 0) {
           console.log(
             `🎤 Resume mode: Continuing from ayat ${resumeIndex + 1}`,
@@ -312,7 +506,6 @@ export const useAudioPlayer = (playType, playId, playTitle) => {
           !forceRestart
         ) {
           hasShownPrompt = true;
-
           Alert.alert(
             'Resume Tilawat? 📖',
             `Aap pichli baar Ayat ${resumeIndex + 1} par thay.`,
@@ -365,11 +558,19 @@ export const useAudioPlayer = (playType, playId, playTitle) => {
         saveProgress(currentIndexRef.current, isVoiceModeRef.current);
       }
     };
-  }, [playId, playType, playTitle, forceRestart, isResumeMode]);
+  }, [playId, playType, playTitle, forceRestart, isResumeMode, resumeFromAyat]);
 
+  // ============================================================
+  // RETURN
+  // ============================================================
   return {
     ayats,
     surahName,
+    surahArabicName,
+    reciterName,
+    totalAyats,
+    rangeFrom,
+    rangeTo,
     loading,
     currentIndex,
     isPlaying,
@@ -379,6 +580,8 @@ export const useAudioPlayer = (playType, playId, playTitle) => {
     pause,
     next,
     previous,
+    nextSurah,
+    previousSurah,
     seekToTime,
     isVoiceMode,
   };
