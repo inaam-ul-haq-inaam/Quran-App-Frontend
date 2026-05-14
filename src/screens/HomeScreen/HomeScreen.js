@@ -69,7 +69,6 @@ const HomeScreen = ({ navigation }) => {
       screen: 'BookmarkListScreen',
     },
     { title: 'Bookmark Bayan', icon: 'mic-outline', screen: 'Bayan' },
-    { title: 'Bookmark Chain', icon: 'link-outline', screen: 'Chain' },
   ];
 
   return (

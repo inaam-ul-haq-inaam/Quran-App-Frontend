@@ -765,59 +765,61 @@ export const useVoiceCommand = () => {
         }
 
         // ============================================================
-        // 🔥 BAYAN PLAY COMMAND - FIXED with stopAndReset and forceRestart
+        // 🔥 BAYAN PLAY - Using direct data from token (NO API CALL!)
         // ============================================================
-        // In the bayan play handler, before fetching new data:
-
         if (tokenData?.type === 'bayan') {
-          console.log('🎤 Playing bayan for surah:', tokenData?.surahId);
+          console.log('🎤 Bayan token data received:', {
+            title: tokenData.bayanTitle,
+            url: tokenData.bayanUrl,
+            index: tokenData.bayanIndex,
+            requestedAyat: tokenData.requestedAyat,
+            range: tokenData.bayanRange,
+            surahId: tokenData.surahId,
+          });
 
-          if (!tokenData?.surahId) {
-            ToastAndroid.show('Please say surah name', ToastAndroid.SHORT);
+          if (!tokenData.bayanUrl) {
+            ToastAndroid.show('Bayan audio not found', ToastAndroid.LONG);
             return;
           }
 
           try {
             await PlayerService.setupPlayer();
-            // 🔥 Stop and reset player
             await PlayerService.stopAndReset();
 
-            // 🔥 Add small delay to ensure reset completes
-            await new Promise(resolve => setTimeout(resolve, 100));
+            const bayanItem = {
+              BayanID: tokenData.bayanId || Date.now(),
+              Title: tokenData.bayanTitle || 'Bayan',
+              AudioUrl: tokenData.bayanUrl,
+              ScholarName: 'Dr. Israr Ahmed',
+              StartAyatID: tokenData.bayanRange?.split('-')[0] || null,
+              EndAyatID: tokenData.bayanRange?.split('-')[1] || null,
+            };
 
-            // 🔥 Fetch fresh data (bypass any cache)
-            const bayanList = await getBayanData(tokenData.surahId);
+            console.log('🎵 Playing bayan:', bayanItem.Title);
+            console.log('🎵 Audio URL:', bayanItem.AudioUrl);
 
-            console.log('📡 Fetched bayan list:', bayanList?.length);
+            // 🔥 KEY FIX: Add unique timestamp to force new screen instance
+            const uniqueKey = Date.now();
 
-            if (bayanList && bayanList.length > 0) {
-              const bayanIndex = tokenData.bayanIndex || 0;
-              const validIndex = bayanIndex < bayanList.length ? bayanIndex : 0;
+            RootNavigation.navigate('Bayan', {
+              screen: 'BayanPlayer',
+              params: {
+                bayanList: [bayanItem],
+                initialIndex: 0,
+                isVoiceCommand: true,
+                forceRestart: true,
+                _key: uniqueKey, // 👈 Forces new instance
+              },
+            });
 
-              // 🔥 Log the first bayan title to verify it's different
-              console.log('🎤 First bayan title:', bayanList[0]?.Title);
-
-              RootNavigation.navigate('Bayan', {
-                screen: 'BayanPlayer',
-                params: {
-                  bayanList: JSON.parse(JSON.stringify(bayanList)), // 🔥 Deep copy to break reference
-                  initialIndex: validIndex,
-                  isVoiceCommand: true,
-                  forceRestart: true,
-                },
-              });
-            } else {
-              ToastAndroid.show(
-                'No bayan found for this surah',
-                ToastAndroid.LONG,
-              );
-            }
+            ToastAndroid.show(`🎙️ ${bayanItem.Title}`, ToastAndroid.SHORT);
           } catch (error) {
             console.error('Bayan play error:', error);
             ToastAndroid.show('Error playing bayan', ToastAndroid.SHORT);
           }
           return;
         }
+
         if (tokenData?.surah) {
           await playSurahById(
             tokenData.surah,

@@ -1,8 +1,8 @@
-// useBayanController.js - Fixed Resume & Voice Support with Force Restart
+// useBayanController.js - Fixed to handle multiple bayan plays without reload
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Alert, ToastAndroid } from 'react-native';
-import { useRoute } from '@react-navigation/native'; // 👈 ADD THIS IMPORT
+import { useRoute, useFocusEffect } from '@react-navigation/native';
 import TrackPlayer, {
   State,
   usePlaybackState,
@@ -14,7 +14,6 @@ import TrackPlayer, {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import PlayerService from '../../Service/PlayerService';
-import { getBayanData } from '../../Service/Api';
 
 export const useBayanController = (
   initialBayanList,
@@ -25,18 +24,18 @@ export const useBayanController = (
   // GET ROUTE PARAMS (for forceRestart)
   // ============================================================
   const route = useRoute();
-  const { forceRestart = false } = route.params || {};
+  const { forceRestart = false, _key } = route.params || {};
 
-  const [bayanList, setBayanList] = useState(initialBayanList);
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [bayanList, setBayanList] = useState(initialBayanList || []);
+  const [currentIndex, setCurrentIndex] = useState(initialIndex || 0);
   const [isReady, setIsReady] = useState(false);
   const [hasAudio, setHasAudio] = useState(true);
   const [isVoiceMode, setIsVoiceMode] = useState(isVoiceCommand);
 
-  const currentIndexRef = useRef(initialIndex);
+  const currentIndexRef = useRef(initialIndex || 0);
   const isVoiceModeRef = useRef(isVoiceCommand);
   const positionRef = useRef(0);
-  const forceRestartRef = useRef(forceRestart); // 👈 ADD THIS REF
+  const forceRestartRef = useRef(forceRestart);
 
   const playbackState = usePlaybackState();
   const { position, duration } = useProgress();
@@ -44,6 +43,43 @@ export const useBayanController = (
   const data = bayanList[currentIndex];
   const isPlaying =
     playbackState.state === State.Playing || playbackState === State.Playing;
+
+  // Debug logs
+  console.log('🎵 BayanController Init:', {
+    initialBayanListLength: initialBayanList?.length,
+    initialIndex,
+    currentIndex,
+    firstTitle: bayanList[0]?.Title,
+    currentTitle: data?.Title,
+    forceRestart,
+    key: _key,
+  });
+
+  // ============================================================
+  // FORCE RESET WHEN NEW BAYAN LIST ARRIVES (FIX FOR MULTIPLE PLAYS)
+  // ============================================================
+  useEffect(() => {
+    // When new bayan list arrives with different content, reset everything
+    if (initialBayanList && initialBayanList.length > 0) {
+      const isDifferentList =
+        JSON.stringify(initialBayanList) !== JSON.stringify(bayanList);
+      if (isDifferentList) {
+        console.log('🆕 New bayan list detected, resetting player...');
+        setBayanList(initialBayanList);
+        setCurrentIndex(initialIndex || 0);
+        currentIndexRef.current = initialIndex || 0;
+        forceRestartRef.current = true;
+
+        // Stop current playback immediately
+        const resetPlayer = async () => {
+          await TrackPlayer.stop();
+          await TrackPlayer.reset();
+          console.log('🔄 Player reset due to new bayan list');
+        };
+        resetPlayer();
+      }
+    }
+  }, [initialBayanList, initialIndex]);
 
   // ============================================================
   // SAVE PROGRESS (time position in seconds)
@@ -76,13 +112,6 @@ export const useBayanController = (
   }, [data]);
 
   // ============================================================
-  // TRACK CHANGE LISTENER
-  // ============================================================
-  useTrackPlayerEvents([Event.PlaybackActiveTrackChanged], async event => {
-    // For bayan we don't have multiple tracks, but keep for consistency
-  });
-
-  // ============================================================
   // PERIODIC PROGRESS SAVE (every 5 seconds)
   // ============================================================
   useEffect(() => {
@@ -107,38 +136,7 @@ export const useBayanController = (
       rangeTo,
     ) => {
       if (type === 'bayan') {
-        console.log('🎤 BayanController: Voice command for ID:', newId);
-        setIsVoiceMode(isVoice);
-        isVoiceModeRef.current = isVoice;
-        setIsReady(false);
-
-        try {
-          const newData = await getBayanData(newId);
-          let newList = newData?.Bayans || newData;
-          if (newList && newList.length > 0) {
-            let idx = 0;
-            if (
-              rangeFrom !== undefined &&
-              rangeFrom !== null &&
-              typeof rangeFrom === 'number'
-            ) {
-              idx = Math.min(rangeFrom, newList.length - 1);
-            }
-            setBayanList(newList);
-            setCurrentIndex(idx);
-            currentIndexRef.current = idx;
-          } else {
-            ToastAndroid.show(
-              'No bayan found for this surah',
-              ToastAndroid.SHORT,
-            );
-          }
-        } catch (error) {
-          console.log('❌ Bayan Fetch Error:', error);
-          ToastAndroid.show('Error loading bayan', ToastAndroid.SHORT);
-        } finally {
-          setIsReady(true);
-        }
+        console.log('🎤 BayanController: Voice command for navigation');
       }
     };
 
@@ -158,7 +156,8 @@ export const useBayanController = (
         setCurrentIndex(newIndex);
         currentIndexRef.current = newIndex;
       } else {
-        PlayerService.nextBayan(isVoice);
+        console.log('⚠️ Already at last bayan');
+        ToastAndroid.show('Last bayan', ToastAndroid.SHORT);
       }
     },
     [currentIndex, bayanList.length],
@@ -176,18 +175,24 @@ export const useBayanController = (
         setCurrentIndex(newIndex);
         currentIndexRef.current = newIndex;
       } else {
-        PlayerService.previousBayan(isVoice);
+        console.log('⚠️ Already at first bayan');
+        ToastAndroid.show('First bayan', ToastAndroid.SHORT);
       }
     },
     [currentIndex],
   );
 
   // ============================================================
-  // SETUP AND PLAY BAYAN (WITH FORCE RESTART SUPPORT)
+  // SETUP AND PLAY BAYAN
   // ============================================================
   const setupAndPlayBayan = useCallback(async () => {
-    if (!data) return;
+    if (!data) {
+      console.log('⚠️ No data available for bayan');
+      return;
+    }
+
     setIsReady(false);
+    console.log(`🎵 Setting up bayan [${currentIndex}]: ${data.Title}`);
 
     try {
       await TrackPlayer.setupPlayer();
@@ -201,22 +206,19 @@ export const useBayanController = (
           Capability.SeekTo,
         ],
       });
-    } catch (e) {
-      /* already setup */
-    }
+    } catch (e) {}
 
     // ============================================================
-    // 🔥 FORCE RESTART - Clear previous audio
+    // FORCE RESTART - Clear previous audio
     // ============================================================
     if (forceRestartRef.current) {
       await TrackPlayer.stop();
       await TrackPlayer.reset();
       console.log('🔄 Force restart - cleared previous bayan');
-      // Reset the flag so next time it doesn't force restart unnecessarily
       forceRestartRef.current = false;
     }
 
-    const audioLink = data?.AudioUrl || data?.AudioFile;
+    const audioLink = data?.AudioUrl;
     if (!audioLink || audioLink.trim() === '') {
       console.warn('⚠️ No Audio Link found');
       setHasAudio(false);
@@ -227,18 +229,17 @@ export const useBayanController = (
     setHasAudio(true);
     await TrackPlayer.reset();
     await TrackPlayer.add({
-      id: data.BayanID?.toString() || `bayan_${currentIndex}`,
+      id: data.BayanID?.toString() || `bayan_${Date.now()}_${currentIndex}`,
       url: audioLink,
       title: data.Title || 'Bayan',
-      artist: data.ScholarName || data.ScholorName || 'Dr. Israr Ahmed',
+      artist: data.ScholarName || 'Dr. Israr Ahmed',
     });
 
-    console.log('🎵 Bayan Added:', audioLink);
+    console.log(`🎵 Bayan Added [${currentIndex}]: ${audioLink}`);
 
-    // Resume from saved position if NOT voice command (manual mode)
     const resumePos = await getResumePosition();
 
-    // 🔥 If force restart was true, start from beginning (don't resume)
+    // If force restart, start from beginning
     if (forceRestart) {
       console.log('🎵 Force restart - playing from beginning');
       await TrackPlayer.seekTo(0);
@@ -276,7 +277,6 @@ export const useBayanController = (
       );
       setIsReady(true);
     } else if (isVoiceModeRef.current && resumePos > 0) {
-      // Voice mode auto-resume
       console.log(`🎙️ Voice mode - auto-resuming from ${resumePos}s`);
       await TrackPlayer.seekTo(resumePos);
       await TrackPlayer.play();

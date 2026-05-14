@@ -133,36 +133,20 @@ const setupPlayer = async () => {
 // PLAYBACK CONTROLS
 // ============================================================
 
-// 0. Stop and Reset (NEW - for Bayan and new audio)
-// ============================================================
-// PlayerService.js - Fixed stopAndReset (without getState)
-
+// PlayerService.js - Improved stopAndReset
 const stopAndReset = async () => {
   try {
     // First ensure player is setup
     await setupPlayer();
 
-    // Try to check if player has any tracks by getting queue
-    try {
-      const queue = await TrackPlayer.getQueue();
-      if (queue && queue.length > 0) {
-        await TrackPlayer.stop();
-        await TrackPlayer.reset();
-        console.log('🔄 Player stopped and reset');
-      } else {
-        console.log('⚠️ No tracks in queue, skipping stop/reset');
-        await TrackPlayer.reset(); // Still reset to be safe
-      }
-    } catch (queueError) {
-      console.log('⚠️ Could not get queue, resetting anyway');
-      await TrackPlayer.reset();
-    }
+    // Simple reset - this is enough
+    await TrackPlayer.reset();
+    console.log('🔄 Player reset successfully');
   } catch (e) {
     console.log('❌ Stop and reset error:', e);
-    // Don't throw - just log the error
+    // Don't throw - just log
   }
 };
-
 // 1. Play
 const play = async (isVoice = false) => {
   try {

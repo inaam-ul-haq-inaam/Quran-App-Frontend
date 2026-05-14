@@ -1,4 +1,4 @@
-// BayanPlayer.js - Fixed import path
+// BayanPlayer.js - Fixed with debug logs
 
 import React from 'react';
 import {
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useBayanController } from './BayanController'; // ✅ Correct import
+import { useBayanController } from './BayanController'; // ✅ Correct import (check file name)
 
 const formatTime = seconds => {
   if (!seconds || isNaN(seconds)) return '00:00';
@@ -21,9 +21,19 @@ const formatTime = seconds => {
 const BayanPlayer = ({ route, navigation }) => {
   const {
     bayanList,
-    initialIndex,
+    initialIndex = 0,
     isVoiceCommand = false,
   } = route.params || {};
+
+  // Debug logs to verify received data
+  console.log('🎵 BayanPlayer received:', {
+    bayanListLength: bayanList?.length,
+    initialIndex,
+    isVoiceCommand,
+    firstTitle: bayanList?.[0]?.Title,
+    targetIndexTitle: bayanList?.[initialIndex]?.Title,
+    targetAudioUrl: bayanList?.[initialIndex]?.AudioUrl,
+  });
 
   const {
     data,
@@ -39,6 +49,13 @@ const BayanPlayer = ({ route, navigation }) => {
     playPrevious,
     isVoiceMode,
   } = useBayanController(bayanList, initialIndex, isVoiceCommand);
+
+  // Log current playing data
+  console.log('🎵 BayanPlayer playing:', {
+    currentIndex,
+    title: data?.Title,
+    audioUrl: data?.AudioUrl,
+  });
 
   const progressWidth = duration > 0 ? (position / duration) * 100 : 0;
 
